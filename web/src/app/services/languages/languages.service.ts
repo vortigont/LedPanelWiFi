@@ -1,9 +1,8 @@
-import {HttpClient, HttpHeaders} from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {Injectable, OnDestroy, OnInit} from '@angular/core';
 import {stripComments} from 'jsonc-parser';
 import {map} from 'rxjs/operators';
-import {CommonService} from '../common/common.service';
-import {isNullOrUndefined, isNullOrUndefinedOrEmpty} from '../helper';
+import {isNullOrUndefinedOrEmpty} from '../helper';
 
 @Injectable({
   providedIn: 'root'
@@ -16,8 +15,7 @@ export class LanguagesService implements OnInit, OnDestroy {
   private default_lang = 'rus';
   private lmap: Map<string, string> = new Map();
 
-  constructor(private httpClient: HttpClient,
-              private commonService: CommonService) {
+  constructor(private httpClient: HttpClient) {
     this.lang = window.localStorage['lang'];
     if (isNullOrUndefinedOrEmpty(this.lang)) {
       this.lang = this.default_lang;

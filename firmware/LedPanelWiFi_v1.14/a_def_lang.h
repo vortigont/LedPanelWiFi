@@ -34,8 +34,6 @@
 #define LANG 'RUS'
 #endif
 
-static const char DELIM_LINE[] PROGMEM = "-------------------------------------------";
-
 // ============================================== RUS ============================================== 
 
 #if (LANG == 'RUS')
@@ -43,23 +41,38 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // Список и порядок эффектов, передаваемый в Web-интерфейс. 
   // Порядок имен эффектов в списке должен соответствовать списку эффектов, определенному в файле a_def_soft.h 
-  // в строках, начиная с 119 
+  // в строках, начиная с 89. Данный список передается в Web-клиент, для чего требуется буфер. Буфер имеет размер MAX_BUFFER_SIZE
+  // Если даннвя строка (UTF-8, два байта на символ) не влезет в буфер - эффекты не будут переданы в Web-интерфейс, плашки эффектов будут отсутствовать,
+  // в логах браузера будет строчка
+  //  {"e": "stt","d": "{\"LE\":null}"}
+  //  json='{"LE":null}'
+  // В этом случае нужно либо сокращать имена эффектов, либо увеличивать размер буфера. Но увеличение размера буфера может привести к нехватки памяти
+  // и нестабильной работе прошивки на ESP8266. На ESP32 памяти больше - размер буфера можно увеличиватью
+
+  static const char EFFECT_LIST[] PROGMEM =
+    "Часы,Лампа,Снегопад,Кубик,Радуга,Пейнтбол,Огонь,The Matrix,Червячки,Звездопад,Конфетти," 
+    "Цветной шум,Облака,Лава,Плазма,Бензин на воде,Павлин,Зебра,Шумящий лес,Морской прибой,Смена цвета," 
+    "Светлячки,Водоворот,Циклон,Мерцание,Северное сияние,Тени,Лабиринт,Змейка,Тетрис,Арканоид," 
+    "Палитра,Спектрум,Синусы,Вышиванка,Дождь,Камин,Стрелки,Узоры,Рубик,Звёзды,Штора,Трафик,Рассвет,Поток,Фейерверк,Полосы"
+
+  // Эффекты Анимации, Погоды, Слайды и SD-карта могут быть отключены условиями USE_ANIMATION = 0 и USE_SD = 0
+  // Список эффектов передается в WebUI позиционно: эффект "Часы" имеют ID=0, эффект "SD-карта" имеет ID=47 (см. определение в a_def_soft.h)
+  // При включении на стороне WebUI в контроллер передается ID (точнее позиция эффекта в списке). 
+  // Чтобы при отключении например "Анимациия","Погода","Слайды" не было смещения - нумерации эффектов вместо отсутствующих передается пустая строка
+  // Тогда при получении списка WebUI пропустит пустые эффекты, но позиции останутся правильными и эффект "SD-карта" будет иметь ID=47, а не 44
+  
+  #if (USE_ANIMATION == 1)
+    ",Анимация,Погода,Слайды"
+  #else  
+    ",,,"
+  #endif
   
   #if (USE_SD == 1)   
-    static const char EFFECT_LIST[] PROGMEM = 
-      "Часы,Лампа,Снегопад,Кубик,Радуга,Пейнтбол,Огонь,The Matrix,Шарики,Звездопад,Конфетти," \
-      "Цветной шум,Облака,Лава,Плазма,Радужные переливы,Павлин,Зебра,Шумящий лес,Морской прибой,Смена цвета," \
-      "Светлячки,Водоворот,Циклон,Мерцание,Северное сияние,Тени,Лабиринт,Змейка,Тетрис,Арканоид," \
-      "Палитра,Спектрум,Синусы,Вышиванка,Дождь,Камин,Стрелки,Анимация,Погода,Узоры,Рубик,Звёзды,Штора,Трафик," \
-      "Слайды,Рассвет,SD-Карта";
-  #else
-    static const char EFFECT_LIST[] PROGMEM =
-      "Часы,Лампа,Снегопад,Кубик,Радуга,Пейнтбол,Огонь,The Matrix,Шарики,Звездопад,Конфетти," \
-      "Цветной шум,Облака,Лава,Плазма,Радужные переливы,Павлин,Зебра,Шумящий лес,Морской прибой,Смена цвета," \
-      "Светлячки,Водоворот,Циклон,Мерцание,Северное сияние,Тени,Лабиринт,Змейка,Тетрис,Арканоид," \
-      "Палитра,Спектрум,Синусы,Вышиванка,Дождь,Камин,Стрелки,Анимация,Погода,Узоры,Рубик,Звёзды,Штора,Трафик," \
-      "Слайды,Рассвет";
+    ",SD-Карта"
+  #else  
+    ","
   #endif
+  ;                 // <-- эта точка с запятой закрывает оператор static const char EFFECT_LIST[] PROGMEM =
 
   // ****************** ОПРЕДЕЛЕНИЯ ПАРАМЕТРОВ БУДИЛЬНИКА ********************
   
@@ -91,10 +104,9 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // Список звуков для макроса {A} бегущей строки
   static const char NOTIFY_SOUND_LIST[] PROGMEM = 
-    "Piece Of Сake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board," \
-    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal," \
+    "Piece Of Сake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board,"
+    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal,"
     "Viber Message,Viber Call,Text Message,Old Clock 1,Old Clock 2,Old Clock 3";
-
   #endif
 
   // Список названия анимаций. Анимации определены в файле 'animation.ino'
@@ -104,7 +116,7 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
 
   // Список названий узоров
   static const char LANG_PATTERNS_LIST[] PROGMEM = 
-    "Зигзаг,Ноты,Ромб,Сердце,Елка,Клетка,Смайлик,Зигзаг,Полосы,Волны,Чешуя,Портьера,Плетенка,Снежинка,Квадратики,Греция,Круги,Рулет," \
+    "Зигзаг,Ноты,Ромб,Сердце,Елка,Клетка,Смайлик,Зигзаг,Полосы,Волны,Чешуя,Портьера,Плетенка,Снежинка,Квадратики,Греция,Круги,Рулет,"
     "Узор 1,Узор 2,Узор 3,Узор 4,Узор 5,Узор 6,Узор 7,Узор 8,Узор 9,Узор 10,Узор 11,Узор 12,Узор 13,Узор 14";
 
   // Погодные условия от Yandex
@@ -256,29 +268,30 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   // на шаге инициализации при первом запуске прошивки на микроконтроллере.
   // Данные примеры содержат некоторые варианты использования макросов в бегущей строке.
   
+  #if (INITIALIZE_TEXTS == 1)
   static const char textLine_0[] PROGMEM = "##";
-  static const char textLine_1[] PROGMEM = "Всё будет хорошо!";
+  static const char textLine_1[] PROGMEM = "{D} {WT}";
   static const char textLine_2[] PROGMEM = "До {C#00D0FF}Нового года {C#FFFFFF}осталось {C#10FF00}{R01.01.***+}{S01.12.****#31.12.**** 23:59:59}{E21}";
   static const char textLine_3[] PROGMEM = "До {C#0019FF}Нового года{C#FFFFFF} {P01.01.****#4}";
   static const char textLine_4[] PROGMEM = "С {C#00D0FF}Новым {C#0BFF00}{D:yyyy} {C#FFFFFF}годом!{S01.01.****#31.01.**** 23:59:59}{E21}";
-  static const char textLine_5[] PROGMEM = "В {C#10FF00}Красноярске {C#FFFFFF}{WS} {WT}°C";
+  static const char textLine_5[] PROGMEM = "В {C#10FF00}Красноярске {C#FFFFFF}{WS} {WT}";
   static const char textLine_6[] PROGMEM = "Show must go on!{C#000002}";
   static const char textLine_7[] PROGMEM = "{C#FF000F}Крибле! {C#000001}Крабле!! {C#00FF00}Бумс!!!{E24}";
   static const char textLine_8[] PROGMEM = "Крепитесь, люди - скоро {C#FF0300}лето!{S01.01.****#10.04.****}";
   static const char textLine_9[] PROGMEM = "Это {C#0081FF}\"ж-ж-ж\"{C#FFFFFF} - неспроста!";
-  static const char textLine_A[] PROGMEM = "{C#000001}Раз! Два!! Три!!! {C#33C309}Ёлочка,{B#000000}{C#000001} гори!!!";
+  static const char textLine_A[] PROGMEM = "{C#000001}Раз! Два!! Три!!! {C#33C309}Ёлочка,{B#000000}{C#000001} гори!!!{C#FFFFFF}";
   static const char textLine_B[] PROGMEM = "Дело было вечером, делать было нечего...";
   static const char textLine_C[] PROGMEM = "С наступающим Новым {C#00C911}{D:yyy+}{C#FFFFFF} годом!{S01.12.****#31.12.****}";
   static const char textLine_D[] PROGMEM = "Это нужно обдумать...";
   static const char textLine_E[] PROGMEM = "В этом что-то есть...";
-  static const char textLine_F[] PROGMEM = "В {C#10FF00}Красноярске {C#FFFFFF}{WS} {WT}°C";
+  static const char textLine_F[] PROGMEM = "В {C#10FF00}Красноярске {C#FFFFFF}{WS} {WT}";
   static const char textLine_G[] PROGMEM = "Вот оно что, {C#FF0000}Михалыч{C#FFFFFF}!..";
   static const char textLine_H[] PROGMEM = "Сегодня {D:d MMMM yyyy} года, {D:dddd}";
   static const char textLine_I[] PROGMEM = "Лень - двигатель прогресса";
   static const char textLine_J[] PROGMEM = "Чем бы дитя не тешилось...";
   static const char textLine_K[] PROGMEM = "С Рождеством!{S07.01.****}";
   static const char textLine_L[] PROGMEM = "С днем Победы!{S09.05.**** 7:00#09.05.**** 21:30}";
-  static const char textLine_M[] PROGMEM = "Сегодня {D:dddd dd MMMM}, на улице {WS}, {WT}°C";
+  static const char textLine_M[] PROGMEM = "Сегодня {D:dddd dd MMMM}, на улице {WS}, {WT}";
   static const char textLine_N[] PROGMEM = "С праздником, соседи!";
   static const char textLine_O[] PROGMEM = "Не скучайте!";
   static const char textLine_P[] PROGMEM = "Счастья всем! И пусть никто не уйдет обиженным.";
@@ -292,7 +305,8 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char textLine_X[] PROGMEM = "Курочка по зёрнышку, копеечка к копеечке!";
   static const char textLine_Y[] PROGMEM = "Подъем через {P7:30#Z#60#60#12345}!";
   static const char textLine_Z[] PROGMEM = "-Доброе утро!";
-
+  #endif
+  
   // Строки результатов выполнения операций и некоторых других сообщений, передаваемых
   // из прошивки в Web-приложение для отображения
   
@@ -301,11 +315,11 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char MSG_FILE_SAVED[] PROGMEM         = "Файл сохранен";
   static const char MSG_FILE_SAVE_ERROR[] PROGMEM    = "Ошибка записи в файл";
   static const char MSG_FILE_CREATE_ERROR[] PROGMEM  = "Ошибка создания файла";
-  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Ошибка создания папки для хранения изображений";
+  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Ошибка создания папки хранилища";
   static const char MSG_FILE_LOADED[] PROGMEM        = "Файл загружен";
   static const char MSG_FILE_LOAD_ERROR[] PROGMEM    = "Ошибка чтения файла";
   static const char MSG_FILE_NOT_FOUND[] PROGMEM     = "Файл не найден";
-  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Папка для хранения изображений не найдена";
+  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Папка не найдена";
   static const char MSG_BACKUP_SAVE_ERROR[] PROGMEM  = "Не удалось сохранить резервную копию настроек";
   static const char MSG_BACKUP_SAVE_OK[] PROGMEM     = "Резервная копия настроек создана";
   static const char MSG_BACKUP_LOAD_ERROR[] PROGMEM  = "Не удалось загрузить резервную копию настроек";
@@ -331,23 +345,27 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
 
   // List of effects names and order in sequence trensferring to Web-application. 
   // Order of Names MUST correspont to order of effect ID definitions declared in a_def_soft.h file
-  // starting from line 119
+  // starting from line 89
   
-  #if (USE_SD == 1)
-    static const char EFFECT_LIST[] PROGMEM = 
-      "Clock,Lamp,Showfall,Cube,Rainbow,Paintball,Fire,The Matrix,Balls,Starfall,Confetti," \
-      "Color noise,Clouds,Lava,Plasma,Iridescent,Peacock,Zebra,Noisy forest,Sea surf,Color change," \
-      "Fireflies,Whirlpool,Cyclone,Flicker,Northern lights,Shadows,Maze,Snake,Tetris,Arkanoid," \
-      "Palette,Spectrum,Sinuses,Embroidery,Rain,Fireplace,Arrows,Animation,Weather,Patterns,Rubic,Stars," \
-      "Curtain,Traffic,Slides,Dawn,SD-card";
-  #else
-    static const char EFFECT_LIST[] PROGMEM =
-      "Clock,Lamp,Showfall,Cube,Rainbow,Paintball,Fire,The Matrix,Balls,Starfall,Confetti," \
-      "Color noise,Clouds,Lava,Plasma,Iridescent,Peacock,Zebra,Noisy forest,Sea surf,Color change," \
-      "Fireflies,Whirlpool,Cyclone,Flicker,Northern lights,Shadows,Maze,Snake,Tetris,Arkanoid," \
-      "Palette,Spectrum,Sinuses,Embroidery,Rain,Fireplace,Arrows,Animation,Weather,Patterns,Rubic,Stars," \
-      "Curtain,Traffic,Slides,Dawn";
+  static const char EFFECT_LIST[] PROGMEM =
+    "Clock,Lamp,Showfall,Cube,Rainbow,Paintball,Fire,The Matrix,Worms,Starfall,Confetti,"
+    "Color noise,Clouds,Lava,Plasma,Iridescent,Peacock,Zebra,Noisy forest,Sea surf,Color change,"
+    "Fireflies,Whirlpool,Cyclone,Flicker,Northern lights,Shadows,Maze,Snake,Tetris,Arkanoid,"
+    "Palette,Spectrum,Sinuses,Embroidery,Rain,Fireplace,Arrows,Patterns,Rubic,Stars,"
+    "Curtain,Traffic,Dawn,Stream,Fireworks,Stripes"
+    
+  #if (USE_ANIMATION == 1)
+    ",Animation,Weather,Slides"
+  #else  
+    ",,,"
   #endif
+
+  #if (USE_SD == 1)
+    ",SD-card"
+  #else  
+    ","
+  #endif
+  ;         // <-- this ';' closes the operator static const char EFFECT_LIST[] PROGMEM =
   
   // ****************** SOUNDS OF ALARMS, DAWN and RUNNING TEXT MACRO {A} ********************
   
@@ -379,8 +397,8 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // List of sounds for {A} macros of running text in phone application or Web-interface
   static const char NOTIFY_SOUND_LIST[] PROGMEM = 
-    "Piece Of Cake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board," \
-    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal," \
+    "Piece Of Cake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board,"
+    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal,"
     "Viber Message,Viber Call,Text Message,Old Clock 1,Old Clock 2,Old Clock 3";
   
   #endif
@@ -393,7 +411,7 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // List names of Patterns effect
   static const char LANG_PATTERNS_LIST[] PROGMEM = 
-    "Zigzag,Notes,Rhomb,Heart,Fir tree,Cells,Smile,Zigzag-2,Streaks,Waves,Scales,Curtain,Wicker,Snowflake,Squares,Greece,Circles,Roll," \
+    "Zigzag,Notes,Rhomb,Heart,Fir tree,Cells,Smile,Zigzag-2,Streaks,Waves,Scales,Curtain,Wicker,Snowflake,Squares,Greece,Circles,Roll,"
     "Pattern 1,Pattern 2,Pattern 3,Pattern 4,Pattern 5,Pattern 6,Pattern 7,Pattern 8,Pattern 9,Pattern 10,Pattern 11,Pattern 12,Pattern 13,Pattern 14";
 
   // Weather condition from Yandex
@@ -545,6 +563,7 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   // at the initialization step when the firmware is first started on the microcontroller.
   // These examples contain some options for using macros in a running line.
 
+  #if (INITIALIZE_TEXTS == 1)
   static const char textLine_0[] PROGMEM = "##";
   static const char textLine_1[]         = "";
   static const char textLine_2[] PROGMEM = "There are {C#10FF00}{R01.01.***+} {C#FFFFFF} left until the {C#00D0FF}New year!{S01.12.****#31.12.**** 23:59:59}{E21}";
@@ -560,14 +579,14 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char textLine_C[]         = "";
   static const char textLine_D[]         = "";
   static const char textLine_E[]         = "";
-  static const char textLine_F[] PROGMEM = "Weather in {C#10FF00}Krasnoyarsk: {C#FFFFFF}{WS} {WT}°C";
+  static const char textLine_F[] PROGMEM = "Weather in {C#10FF00}Krasnoyarsk: {C#FFFFFF}{WS} {WT}";
   static const char textLine_G[]         = "";
   static const char textLine_H[] PROGMEM = "Today {D:dd MMMM yyyy} year, {D:dddd}";
   static const char textLine_I[]         = "";
   static const char textLine_J[]         = "";
   static const char textLine_K[] PROGMEM = "Happy Cristmas!{S25.12.****}";
   static const char textLine_L[] PROGMEM = "Victory day!{S09.05.**** 7:00#09.05.**** 21:30}";
-  static const char textLine_M[] PROGMEM = "Today {D:dddd dd MMMM}, outdoor {WS}, {WT}°C{E25}";
+  static const char textLine_M[] PROGMEM = "Today {D:dddd dd MMMM}, outdoor {WS}, {WT}{E25}";
   static const char textLine_N[]         = "";
   static const char textLine_O[]         = "";
   static const char textLine_P[]         = "";
@@ -581,7 +600,8 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char textLine_X[]         = "";
   static const char textLine_Y[] PROGMEM = "Wake up in {P7:30#Z#60#60#12345}!";
   static const char textLine_Z[] PROGMEM = "-Good morning!";
-
+  #endif
+  
   // Lines of results of operations and some other messages transmitted
   // from the firmware to the Web application to display
 
@@ -590,11 +610,11 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char MSG_FILE_SAVED[] PROGMEM         = "File sucessfully saved";
   static const char MSG_FILE_SAVE_ERROR[] PROGMEM    = "File write error";
   static const char MSG_FILE_CREATE_ERROR[] PROGMEM  = "File create error";
-  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Unable to create folder for images storage";
+  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Unable to create folder for storage";
   static const char MSG_FILE_LOADED[] PROGMEM        = "File loaded";
   static const char MSG_FILE_LOAD_ERROR[] PROGMEM    = "File read error";
   static const char MSG_FILE_NOT_FOUND[] PROGMEM     = "File not found";
-  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Folder with images storage not found";
+  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Folder storage not found";
   static const char MSG_BACKUP_SAVE_ERROR[] PROGMEM  = "Error while create backup file";
   static const char MSG_BACKUP_SAVE_OK[] PROGMEM     = "Backup file sucessfully saved";
   static const char MSG_BACKUP_LOAD_ERROR[] PROGMEM  = "Unable to load backup file";
@@ -620,23 +640,27 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // Lista y orden de los efectos, transmitido al interfaz web. 
   // El orden de los nombres de los efectos en la lista debe coincidir con la lista de los efectos determinada en el archivo a_def_soft.h 
-  // en las lineas desde 119 
+  // en las lineas desde 89 
   
-#if (USE_SD == 1)
-    static const char EFFECT_LIST[] PROGMEM =
-      "Reloj,Lampara,Nevada,Cubo,Arco iris,Paintball,Fuego,The Matrix,Bolas,Lluvia de estrellas,Confeti," \
-      "Ruido de color,Nubes,Lava,Plasma,Arco iris,Pavo real,Cebra,Bosque ruidoso,Surf,Cambio de color," \
-      "Luciérnagas,Remolino,Ciclón,Parpadeo,Luces del Norte,Sombras,Laberinto,Serpiente,Tetris,Arkanoid," \
-      "Paleta,Espectro,Senos,Vyshyvanka,Lluvia,Chimenea,Flechas,Animación,Clima,Patrones,Rubik,Estrellas,Cortina,Tráfico," \
-      "Diapositivas,Amanecer,Tarjeta SD";
+  static const char EFFECT_LIST[] PROGMEM =
+    "Reloj,Lámpara,Nevada,Cubo,Arco iris,Paintball,Fuego,The Matrix,Gusanos,Lluvia de estrellas,Confeti,"
+    "Ruido de color,Nubes,Lava,Plasma,Arco iris,Pavo real,Cebra,Bosque ruidoso,Surf,Cambio de color,"
+    "Luciérnagas,Remolino,Ciclón,Parpadeo,Luces del Norte,Sombras,Laberinto,Serpiente,Tetris,Arkanoid,"
+    "Paleta,Espectro,Senos,Vyshyvanka,Lluvia,Chimenea,Flechas,Patrones,Rubik,Estrellas,Cortina,Tráfico,"
+    "Amanecer,Corriente,Fuegos art,Rayas"
+  
+  #if (USE_ANIMATION == 1)
+    ",Animación,Clima,Diapositivas"
   #else
-    static const char EFFECT_LIST[] PROGMEM =
-      "Reloj,Lámpara,Nevada,Cubo,Arco iris,Paintball,Fuego,The Matrix,Bolas,Lluvia de estrellas,Confeti," \
-      "Ruido de color,Nubes,Lava,Plasma,Arco iris,Pavo real,Cebra,Bosque ruidoso,Surf,Cambio de color," \
-      "Luciérnagas,Remolino,Ciclón,Parpadeo,Luces del Norte,Sombras,Laberinto,Serpiente,Tetris,Arkanoid," \
-      "Paleta,Espectro,Senos,Vyshyvanka,Lluvia,Chimenea,Flechas,Animación,Clima,Patrones,Rubik,Estrellas,Cortina,Tráfico," \
-      "Diapositivas,Amanecer";
+    ",,,"
   #endif
+
+  #if (USE_SD == 1)
+    ",Tarjeta SD"
+  #else  
+    ","
+  #endif
+  ;         // <-- esto ';' cierra el operador static const char EFFECT_LIST[] PROGMEM =
 
   // ****************** DEFINICION DE LOS PARAMETROS DEL DESPERTADOR ********************
   
@@ -668,8 +692,8 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   
   // Lista de los sonidos `para el macro {A} de letrero de desplazamiento
   static const char NOTIFY_SOUND_LIST[] PROGMEM = 
-    "Piece Of Сake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board," \
-    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal," \
+    "Piece Of Сake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board,"
+    "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal,"
     "Viber Message,Viber Call,Text Message,Old Clock 1,Old Clock 2,Old Clock 3";
   
   #endif
@@ -681,12 +705,12 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
 
   // Lista de nombres de los patrones
   static const char LANG_PATTERNS_LIS[] PROGMEM = 
-    "Zigzag,Notas musicales,Rombo,Corazón,Arbol de Navidad,Celda,Carita sonriente,Zigzag,Rayas,Ondas,Escamas,Cortinas,Trenza,Copo de nieve,Cuadrados,Grecia,Círculos,Rollo," \
+    "Zigzag,Notas musicales,Rombo,Corazón,Arbol de Navidad,Celda,Carita sonriente,Zigzag,Rayas,Ondas,Escamas,Cortinas,Trenza,Copo de nieve,Cuadrados,Grecia,Círculos,Rollo," 
     "Patron 1,Patron 2,Patron 3,Patron 4,Patron 5,Patron 6,Patron 7,Patron 8,Patron 9,Patron 10,Patron 11,Patron 12,Patron 13,Patron 14";
 
   // Condiciones del tiempo por Yandex
   static const char Y_CODE_01[] PROGMEM = "parcialmente nublado, lluvia ligera";             // cloudy, light rain
-  static const char Y_CODE_02[] PROGMEM =  "parcialmente nublado, nieve ligera";              // cloudy, light snow
+  static const char Y_CODE_02[] PROGMEM = "parcialmente nublado, nieve ligera";              // cloudy, light snow
   static const char Y_CODE_03[] PROGMEM = "parcialmente nublado, nieve ligera con lluvia";   // cloudy, wet snow
   static const char Y_CODE_04[] PROGMEM = "parcialmente nublado";                            // partly cloudy
   static const char Y_CODE_05[] PROGMEM = "parcialmente nublado, lluvia";                    // partly cloudy, rain
@@ -834,29 +858,30 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   // en el paso de inicializacion al primer comienzo del firmware del microcontrolador.
   // Estos ejemplos contienes algunos variantes del uso de los macros en el letrero de desplazamiento. 
   
+  #if (INITIALIZE_TEXTS == 1)
   static const char textLine_0[] PROGMEM = "##";
   static const char textLine_1[] PROGMEM = "¡Todo estará bien!";
   static const char textLine_2[] PROGMEM = "Hasta {C#00D0FF}La Navidad {C#FFFFFF}se queda {C#10FF00}{R01.01.***+}{S01.12.****#31.12.**** 23:59:59}{E21}";
   static const char textLine_3[] PROGMEM = "Hasta {C#0019FF}La Navidad{C#FFFFFF} {P01.01.****#4}";
   static const char textLine_4[] PROGMEM = "Feliz {C#00D0FF}Navidad {C#0BFF00}{D:yyyy} {C#FFFFFF}!!!{S01.01.****#31.01.**** 23:59:59}{E21}";
-  static const char textLine_5[] PROGMEM = "En {C#10FF00}Madrid {C#FFFFFF}{WS} {WT}°C";
+  static const char textLine_5[] PROGMEM = "En {C#10FF00}Madrid {C#FFFFFF}{WS} {WT}";
   static const char textLine_6[] PROGMEM = "¡Show must go on!{C#000002}";
   static const char textLine_7[] PROGMEM = "{C#FF000F}¡Habracadabra! {C#00FF00}¡¡¡Bum!!!{E24}";
   static const char textLine_8[] PROGMEM = "Prepárense, gente, se acerca {C#FF0300}el verano!{S01.01.****#10.04.****}";
   static const char textLine_9[] PROGMEM = "¿Que {C#0081FF}pasa{C#FFFFFF} Hombre?";
-  static const char textLine_A[] PROGMEM = "{C#000001}¡Uno! ¡¡Dos!! Tres!!! {C#33C309}Tira,{B#000000}{C#000001} ¡¡¡Otra vez!!!";
+  static const char textLine_A[] PROGMEM = "{C#000001}¡Uno! ¡¡Dos!! Tres!!! {C#33C309}Tira,{B#000000}{C#000001} ¡¡¡Otra vez!!!{C#FFFFFF}";
   static const char textLine_B[] PROGMEM = "Esa linia no tiene nada...";
   static const char textLine_C[] PROGMEM = "¡Que bonito!";
   static const char textLine_D[] PROGMEM = "Hola, hola caracola...";
   static const char textLine_E[] PROGMEM = "Hay algo inteligente en esto....";
-  static const char textLine_F[] PROGMEM = "En {C#10FF00}Madrid {C#FFFFFF}{WS} {WT}°C";
+  static const char textLine_F[] PROGMEM = "En {C#10FF00}Madrid {C#FFFFFF}{WS} {WT}";
   static const char textLine_G[] PROGMEM = "Eso es todo, {C#FF0000}hombre{C#FFFFFF}!..";
   static const char textLine_H[] PROGMEM = "Hoy {D:dd MMMM yyyy}, dia {D:dddd}";
   static const char textLine_I[] PROGMEM = "Pareza - motor de progreso";
   static const char textLine_J[]         = "";
   static const char textLine_K[]         = "";
   static const char textLine_L[]         = "";
-  static const char textLine_M[] PROGMEM = "Ahora {D:dddd dd MMMM}, temperatura {WS}, {WT}°C{E25}";
+  static const char textLine_M[] PROGMEM = "Ahora {D:dddd dd MMMM}, temperatura {WS}, {WT}{E25}";
   static const char textLine_N[]         = "";
   static const char textLine_O[]         = "";
   static const char textLine_P[]         = "";
@@ -870,7 +895,8 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char textLine_X[]         = "";
   static const char textLine_Y[] PROGMEM = "Levantote desde{P7:30#Z#60#60#12345}!";
   static const char textLine_Z[] PROGMEM = "¡BUENOS DIAS!";
-
+  #endif
+  
   // Líneas de resultados de ejecución de operaciones y algunos otros mensajes transmitidos
   // del firmware a la aplicación web para mostrar
   
@@ -879,11 +905,11 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char MSG_FILE_SAVED[] PROGMEM         = "Archivo guardado";
   static const char MSG_FILE_SAVE_ERROR[] PROGMEM    = "Error al escribir en el archivo";
   static const char MSG_FILE_CREATE_ERROR[] PROGMEM  = "Error de creación de archivo";
-  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Error al crear una carpeta para almacenar imágenes";
+  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Error al crear una carpeta de almacenamiento";
   static const char MSG_FILE_LOADED[] PROGMEM        = "Archivo descargado";
   static const char MSG_FILE_LOAD_ERROR[] PROGMEM    = "Error de lectura de archivo";
   static const char MSG_FILE_NOT_FOUND[] PROGMEM     = "Archivo no encontrado";
-  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Carpeta de imágenes no encontrada";
+  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM   = "Carpeta no encontrada";
   static const char MSG_BACKUP_SAVE_ERROR[] PROGMEM  = "No se pudo hacer una copia de seguridad de la configuración";
   static const char MSG_BACKUP_SAVE_OK[] PROGMEM     = "Configuraciones respaldadas creadas";
   static const char MSG_BACKUP_LOAD_ERROR[] PROGMEM  = "Error al cargar la copia de seguridad de la configuración";
@@ -901,6 +927,299 @@ static const char DELIM_LINE[] PROGMEM = "--------------------------------------
   static const char WTR_LANG_OWM[]                   = "es";      // OpenWeatherMap = 2 - [código de idioma alfabético-ru,en,de,fr, it y así sucesivamente. Si el idioma no sabe - devuelve tanto para en
   
 #endif
+
+// ============================================== LAT ============================================== 
+
+#if (LANG == 'LAT')
+  #define UI F("LAT")
+  // Web saskarnei nodoto efektu saraksts un secība. 
+  // Efektu nosaukumu secībai sarakstā jāsakrīt ar a_def_soft.h failā definēto efektu sarakstu
+  // rindās, kas sākas ar 89. Šis saraksts tiek nodots tīmekļa klientam, kuram ir nepieciešams buferis. Bufera lielums ir MAX_BUFFER_SIZE
+  // Ja dotā virkne (UTF-8, divi baiti uz katru rakstzīmi) neiekļaujas buferī - efekti netiks pārsūtīti uz tīmekļa saskarni, efektu joslas nebūs redzamas,
+  // pārlūkprogrammas žurnālos parādīsies rinda
+  // {"e": "stt","d": "{\"LE\":null}"}
+  // json='{"LE":null}'
+  // Šādā gadījumā ir vai nu jāsaīsina efektu nosaukumi, vai arī jāpalielina bufera lielums. Taču, palielinot bufera lielumu, var rasties atmiņas trūkums
+  // un nestabilu programmaparatūras darbību ESP8266. ESP32 ir vairāk atmiņas - bufera lielumu var palielināt.
+
+  static const char EFFECT_LIST[] PROGMEM =
+  "Pulkstenis,Lampas,Sniegputenis,Kubs,Varavīksne,Peintbols,Ugunsgrēks,The Matrix,Tārpi,Zvaigžņu kritums,Confetti," 
+  "Krāsu troksnis,Mākoņi,Lava,Plazma,Benzīns ūdenī,Pāvs,Zebra,Skaļš mežs,Jūras sērfošana,Krāsu maiņa," 
+  "Ugunspuķes,Virpulis,Ciklons,Mirgošana,Ziemeļblāzma,Ēnas,Labirints,Čūska,Tetris,Arkanoids," 
+  "Palete,Spektrs,Sinusas,Vyshhyvanka,Lietus,Kamīns,Strēlītes,Raksti,Rubiks,Zvaigznes,Aizkars,Satiksme,Rītausma,Plūsma,Uguņošana,Svītras"
+
+  // Animācijas, laikapstākļu, diapozitīvu un SD kartes efektus var atspējot ar nosacījumiem USE_ANIMATION = 0 un USE_SD = 0
+  // Efektu saraksts WebUI tiek nodots pozicionāli: efektam “Clock” ir ID=0, efektam “SD-card” ir ID=47 (skatīt definīciju a_def_soft.h)
+  // Ja tas ir iespējots WebUI pusē, ID (precīzāk, efekta pozīcija sarakstā) tiek nodots kontrolierim. 
+  // Lai, atslēdzot, piemēram, “Animācija”, “Laikapstākļi”, “Slaidi”, netiktu veikta nobīde - trūkstošo efektu numerācija tiek nodota kā tukša virkne
+  // Tad, iegūstot sarakstu, WebUI izlaidīs tukšos efektus, bet pozīcijas paliks pareizas, un efektam “SD karte” būs ID=47, nevis 44.
+  #if (USE_ANIMATION == 1)
+  ",Animācija,Laikapstākļi,Slaidi"
+  #else 
+  ",,,"
+  #endif
+  #if (USE_SD == 1) 
+  ",SD-karte"
+  #else 
+  ","
+  #endif
+  ; // <-- šis semikolslēdzis noslēdz operatoru static const char EFFECT_LIST[] PROGMEM =
+
+  // ****************** ALARMU UZSTĀDĪŠANA ********************
+  #if (USE_MP3 == 1)
+  // SD kartē MP3 atskaņotājā (DFPlayer) saknē ir trīs mapes - “01”, “02” un “03”.
+  // Mapē “01” ir MP3 faili ar skaņām, kas tiek atskaņotas, kad notiek modinātājs
+  // Mapē “02” ir MP3 faili ar skaņām, kas tiek atskaņotas, kad notiek saullēkts
+  // Mapē “03” ir MP3 faili ar skaņām, kas atskaņotas {A} makro skrejvirkne
+  // DFPlayer nav iespējas nolasīt failu nosaukumus, bet tikai iegūt mapē esošo failu skaitu.
+  // Komanda atskaņot audio nozīmē - atskaņot failu ar indeksu (numuru) N no mapes M
+  // Failu numurus nosaka SD kartes failu piešķiršanas tabula (FAT), un tie tiek ģenerēti tādā secībā, kādā faili tiek ierakstīti tukšajā zibatmiņas diskā
+  // Tādējādi mapē ierakstītais fails pirmais saņem numuru 1, otrais - 2 un tā tālāk, un tas nav atkarīgs no failu nosaukumiem.
+  // Šajos masīvos ir programmā parādīto skaņu nosaukumi tādā secībā, kas atbilst mapēs ierakstīto failu numerācijai.
+  //
+  // Lai izveidotu pareizu skaņu failu secību, pārdēvējiet tos datorā pagaidu mapē, lai tie būtu šādi
+  // piemēram, dodiet tiem tikai ciparu nosaukumus, piemēram, 001.mp3, 002.mp3 utt. vai 
+  // piešķirt esošajam nosaukumam ciparu prefiksu, piemēram, 01_birds.mpr, 02_thunder.mp3 un tā tālāk.
+  // Failiem mapē jābūt sakārtotiem nosaukumu secībā.
+  // Pēc tam tīrā microSD kartē izveidojiet mapi, kurā tiks ievietoti skaņu faili, un nokopējiet tos uz
+  // sakārtotu sarakstu.
+  // Skaņu saraksts viedtālruņa lietojumprogrammas kombo lodziņā “Trauksmes signāla skaņa”
+  static const char ALARM_SOUND_LIST[] PROGMEM = 
+  "One Step Over,In the Death Car,Trompete sauс,Bāka,Mister Sandman,Zārks,Banana Phone,Carol of the Bells";
+  // Skaņu saraksts izvēles rūtiņai “Rītausmas skaņa” viedtālruņa lietotnē. 
+  static const char DAWN_SOUND_LIST[] PROGMEM =
+  "Putni,Vētra,Sērfot,Lietus,Straume,Mantra,La Petite Fille De La Mer";
+  // Skaņu saraksts {A} makro skrejvirkne
+  static const char NOTIFY_SOUND_LIST[] PROGMEM = 
+  "Piece Of Сake,Swiftly,Pristine,Goes Without Saying,Inflicted,Eventually,Point Blank,Spring Board,"
+  "To The Point,Serious Strike,Jingle Bells,Happy New Year,Christmas Bells,Door Knock,Alarm Signal,"
+  "Viber Message,Viber Call,Text Message,Old Clock 1,Old Clock 2,Old Clock 3";
+  #endif
+
+  // Animācijas nosaukumu saraksts. Animācijas ir definētas failā 'animation.ino'.
+  #define LANG_IMAGE_LIST_DEF
+  static const char LANG_IMAGE_LIST[] PROGMEM = 
+  "Sirds,Mario,Laikapstākļi";
+
+  // Modeļu nosaukumu saraksts
+  static const char LANG_PATTERNS_LIST[] PROGMEM = 
+  "Zigzags,Notis,Rombs,Sirds,Ziemassvētku eglīte,Šūna,Smaidiņš,Zigzaga,Svītras,Viļņi,Svari,Aizkars,Tīkls,Sniegpārsla,Kvadrātiņi,Grieķija,Apļi,Rulete,"
+  "Raksts 1,Raksts 2,Raksts 3,Raksts 4,Raksts 5,Raksts 6,Raksts 7,Raksts 8,Raksts 9,Raksts 10,Raksts 11,Raksts 12,Raksts 13,Raksts 14";
+
+  // Laika apstākļi no Yandex
+  static const char Y_CODE_01[] PROGMEM = "daļēji mākoņains, neliels lietus"; // cloudy, light rain
+  static const char Y_CODE_02[] PROGMEM = "daļēji mākoņains, neliels sniegs"; // cloudy, light snow
+  static const char Y_CODE_03[] PROGMEM = "daļēji mākoņains, neliels sniegs un lietus"; // cloudy, wet snow
+  static const char Y_CODE_04[] PROGMEM = "daļēji mākoņains"; // partly cloudy
+  static const char Y_CODE_05[] PROGMEM = "daļēji mākoņains, lietus"; // partly cloudy, rain
+  static const char Y_CODE_06[] PROGMEM = "daļēji mākoņains, sniegs"; // partly cloudy, show
+  static const char Y_CODE_07[] PROGMEM = "daļēji mākoņains, sniegs un lietus"; // partly cloudy, wet snow
+  static const char Y_CODE_08[] PROGMEM = "putenis"; // snowstorm
+  static const char Y_CODE_09[] PROGMEM = "migla"; // fog
+  static const char Y_CODE_10[] PROGMEM = "apmācies"; // overcast
+  static const char Y_CODE_11[] PROGMEM = "apmācies, brīžiem līst"; // overcast, light rain 
+  static const char Y_CODE_12[] PROGMEM = "apmācies, brīžiem sniegs"; // overcast, light snow
+  static const char Y_CODE_13[] PROGMEM = "apmācies, brīžiem sniegs un lietus"; // overcast, wet snow 
+  static const char Y_CODE_14[] PROGMEM = "apmācies, lietus"; // overcast, rain
+  static const char Y_CODE_15[] PROGMEM = "apmācies, sniegs un lietus"; // overcast, wet snow
+  static const char Y_CODE_16[] PROGMEM = "apmācies, sniegs"; // overcast, show
+  static const char Y_CODE_17[] PROGMEM = "apmācies, lietus un pērkona negaiss"; // overcast, thunderstorm withrain
+  static const char Y_CODE_18[] PROGMEM = "skaidrs"; // clear
+
+  // Laika apstākļi no OpenWeatherMap
+  static const char W_CODE_200[] PROGMEM = "Pērkona negaiss, neliels lietus"; // thunderstorm with light rain
+  static const char W_CODE_201[] PROGMEM = "Lietus ar pērkona negaisu"; // thunderstorm with rain
+  static const char W_CODE_202[] PROGMEM = "Pērkona negaiss, spēcīgas lietusgāzes"; // thunderstorm with heavy rain
+  static const char W_CODE_210[] PROGMEM = "Neliels pērkona negaiss"; // light thunderstorm
+  static const char W_CODE_211[] PROGMEM = "Pērkona negaiss"; // thunderstorm
+  static const char W_CODE_212[] PROGMEM = "Spēcīgs pērkona negaiss"; // heavy thunderstorm
+  static const char W_CODE_221[] PROGMEM = "Periodisks pērkona negaiss"; // ragged thunderstorm
+  static const char W_CODE_230[] PROGMEM = "Pērkona negaiss, neliels smidzinošs lietus"; // thunderstorm with light drizzle
+  static const char W_CODE_231[] PROGMEM = "Pērkona negaiss un smidzinošs lietus"; // thunderstorm with drizzle
+  static const char W_CODE_232[] PROGMEM = "Pērkona negaiss ar spēcīgu lietu"; // thunderstorm with heavy drizzle
+  static const char W_CODE_300[] PROGMEM = "Neliels lietus"; // light intensity drizzle
+  static const char W_CODE_301[] PROGMEM = "Smidzinošs lietus"; // drizzle
+  static const char W_CODE_302[] PROGMEM = "Spēcīgs smidzinošs lietus"; // heavy intensity drizzle
+  static const char W_CODE_310[] PROGMEM = "Neliels smidzinošs lietus"; // light intensity drizzle rain
+  static const char W_CODE_311[] PROGMEM = "Smidzinošs lietus"; // drizzle rain
+  static const char W_CODE_312[] PROGMEM = "Spēcīgs lietus"; // heavy intensity drizzle rain
+  static const char W_CODE_313[] PROGMEM = "Spēcīgs lietus, lietus un smidzinošs lietus"; // shower rain and drizzle
+  static const char W_CODE_314[] PROGMEM = "Spēcīga lietusgāze, lietus un smidzinošs lietus"; // heavy shower rain and drizzle
+  static const char W_CODE_321[] PROGMEM = "Smidzinošs lietus"; // shower drizzle 
+  static const char W_CODE_500[] PROGMEM = "Neliels lietus"; // light rain
+  static const char W_CODE_501[] PROGMEM = "Mērens lietus"; // moderate rain
+  static const char W_CODE_502[] PROGMEM = "Spēcīgs lietus"; // heavy intensity rain
+  static const char W_CODE_503[] PROGMEM = "Spēcīgs lietus"; // very heavy rain
+  static const char W_CODE_504[] PROGMEM = "Lietusgāze"; // extreme rain
+  static const char W_CODE_511[] PROGMEM = "Krusa"; // freezing rain
+  static const char W_CODE_520[] PROGMEM = "Neliels lietus"; // light intensity shower rain
+  static const char W_CODE_521[] PROGMEM = "Smidzinošs lietus"; // shower rain
+  static const char W_CODE_522[] PROGMEM = "Spēcīgs lietus"; // heavy intensity shower rain
+  static const char W_CODE_531[] PROGMEM = "Brīžiem līst"; // ragged shower rain
+  static const char W_CODE_600[] PROGMEM = "Neliels sniegs"; // light snow
+  static const char W_CODE_601[] PROGMEM = "Sniegs"; // Snow
+  static const char W_CODE_602[] PROGMEM = "Sniegputenis"; // Heavy snow
+  static const char W_CODE_611[] PROGMEM = "Slapjš"; // Sleet
+  static const char W_CODE_612[] PROGMEM = "Viegls sniegs"; // Light shower sleet
+  static const char W_CODE_613[] PROGMEM = "Lietusgāze, sniegs"; // Shower sleet
+  static const char W_CODE_615[] PROGMEM = "Slapjš sniegs"; // Light rain and snow
+  static const char W_CODE_616[] PROGMEM = "Lietus ar sniegu"; // Rain and snow
+  static const char W_CODE_620[] PROGMEM = "Neliels sniegputenis"; // Light shower snow
+  static const char W_CODE_621[] PROGMEM = "Sniegputenis"; // Shower snow
+  static const char W_CODE_622[] PROGMEM = "Spēcīgs sniegputenis"; // Heavy shower snow
+  static const char W_CODE_701[] PROGMEM = "Migla"; // mist
+  static const char W_CODE_711[] PROGMEM = "Dūmaka"; // Smoke
+  static const char W_CODE_721[] PROGMEM = "Neliela migla"; // Haze
+  static const char W_CODE_731[] PROGMEM = "Putekļu virpuļi"; // sand/ dust whirls
+  static const char W_CODE_741[] PROGMEM = "Migla"; // fog
+  static const char W_CODE_751[] PROGMEM = "Smilšu virpuļi"; // sand
+  static const char W_CODE_761[] PROGMEM = "Putekļu virpuļi"; // dust
+  static const char W_CODE_762[] PROGMEM = "Vulkāniskie pelni"; // volcanic ash
+  static const char W_CODE_771[] PROGMEM = "Brāzmains vējš"; // squalls
+  static const char W_CODE_781[] PROGMEM = "Tornado"; // tornado
+  static const char W_CODE_800[] PROGMEM = "Skaidras debesis"; // clear sky
+  static const char W_CODE_801[] PROGMEM = "Neliels mākoņainums"; // few clouds: 11-25%
+  static const char W_CODE_802[] PROGMEM = "Daļēji mākoņains"; // scattered clouds: 25-50%
+  static const char W_CODE_803[] PROGMEM = "Daļēji mākoņains"; // broken clouds: 51-84%
+  static const char W_CODE_804[] PROGMEM = "Apmācies"; // overcast clouds: 85-100%
+
+  // Datuma izvades konstantes atzīmētājā
+
+  static const char SMonth_01[] PROGMEM = "janvāra";
+  static const char SMonth_02[] PROGMEM = "februāra";
+  static const char SMonth_03[] PROGMEM = "marta";
+  static const char SMonth_04[] PROGMEM = "aprīļa";
+  static const char SMonth_05[] PROGMEM = "maija";
+  static const char SMonth_06[] PROGMEM = "jūnija";
+  static const char SMonth_07[] PROGMEM = "jūlija";
+  static const char SMonth_08[] PROGMEM = "augusta";
+  static const char SMonth_09[] PROGMEM = "septembra";
+  static const char SMonth_10[] PROGMEM = "oktobra";
+  static const char SMonth_11[] PROGMEM = "novembra";
+  static const char SMonth_12[] PROGMEM = "decembra";
+
+  static const char SMnth_01[] PROGMEM = "jan";
+  static const char SMnth_02[] PROGMEM = "feb";
+  static const char SMnth_03[] PROGMEM = "mar";
+  static const char SMnth_04[] PROGMEM = "apr";
+  static const char SMnth_05[] PROGMEM = "maj";
+  static const char SMnth_06[] PROGMEM = "jūn";
+  static const char SMnth_07[] PROGMEM = "jūl";
+  static const char SMnth_08[] PROGMEM = "aug";
+  static const char SMnth_09[] PROGMEM = "sep";
+  static const char SMnth_10[] PROGMEM = "okt";
+  static const char SMnth_11[] PROGMEM = "nov";
+  static const char SMnth_12[] PROGMEM = "dec";
+
+  static const char SDayFull_1[] PROGMEM = "pirmdiena";
+  static const char SDayFull_2[] PROGMEM = "otrdiena";
+  static const char SDayFull_3[] PROGMEM = "trešdiena";
+  static const char SDayFull_4[] PROGMEM = "ceturtdiena";
+  static const char SDayFull_5[] PROGMEM = "piektdiena";
+  static const char SDayFull_6[] PROGMEM = "sestdiena";
+  static const char SDayFull_7[] PROGMEM = "svētdiena";
+
+  static const char SDayShort_1[] PROGMEM = "pir";
+  static const char SDayShort_2[] PROGMEM = "otr";
+  static const char SDayShort_3[] PROGMEM = "tre";
+  static const char SDayShort_4[] PROGMEM = "cet";
+  static const char SDayShort_5[] PROGMEM = "pie";
+  static const char SDayShort_6[] PROGMEM = "ses";
+  static const char SDayShort_7[] PROGMEM = "sv";
+  static const char SDayShrt_1[] PROGMEM = "pr";
+  static const char SDayShrt_2[] PROGMEM = "ot";
+  static const char SDayShrt_3[] PROGMEM = "tr";
+  static const char SDayShrt_4[] PROGMEM = "ct";
+  static const char SDayShrt_5[] PROGMEM = "pk";
+  static const char SDayShrt_6[] PROGMEM = "ss";
+  static const char SDayShrt_7[] PROGMEM = "sv";
+
+  static const char SDayForm_1[] PROGMEM = " dienas"; // Atstarpe sākumā ir obligāta
+  static const char SDayForm_2[] PROGMEM = " diena";
+  static const char SDayForm_3[] PROGMEM = " dienas";
+
+  static const char SHourForm_1[] PROGMEM = " stunda"; // Atstarpe sākumā ir obligāta
+  static const char SHourForm_2[] PROGMEM = " stundas";
+  static const char SHourForm_3[] PROGMEM = " stundas";
+
+  static const char SMinuteForm_1[] PROGMEM = " minūtes"; // Atstarpe sākumā ir obligāta
+  static const char SMinuteForm_2[] PROGMEM = " minūte";
+  static const char SMinuteForm_3[] PROGMEM = " minūtes";
+
+  static const char SSecondForm_1[] PROGMEM = " sekundes"; // Atstarpe sākumā ir obligāta
+  static const char SSecondForm_2[] PROGMEM = " sekunde";
+  static const char SSecondForm_3[] PROGMEM = " sekundes";
+
+  // Veicamās rindas, kas tiks aizpildīta ar šīm vērtībām, kad a_def_hard.h (62. rindā) ir iestatīts karodziņš INITIALIZE_TEXTS == 1, piemēri
+  // inicializācijas posmā, pirmo reizi palaižot programmaparatūru mikrokontrolierī.
+  // Šajos piemēros ir sniegtas dažas iespējas, kā izmantot makroautomātiskos kodus ķeksīša programmā.
+  #if (INITIALIZE_TEXTS == 1)
+  static const char textLine_0[] PROGMEM = "##";
+  static const char textLine_1[] PROGMEM = "Viss būs kārtībā!";
+  static const char textLine_2[] PROGMEM = "Līdz {C#00D0FF}Jaunajam gadam {C#FFFFFF} atlicis {C#10FF00}{R01.01.***+}{S01.12.****#31.12.**** 23:59:59}{E21}";
+  static const char textLine_3[] PROGMEM = "Līdz {C#0019FF}Jaunajam gadam{C#FFFFFF} {P01.01.****#4}";
+  static const char textLine_4[] PROGMEM = "Laimīgu {C#00D0FF}Jauno {C#0BFF00}{D:yyyy} {C#FFFFFF}gadu!{S01.01.****#31.01.**** 23:59:59}{E21}";
+  static const char textLine_5[] PROGMEM = "{C#10FF00}Rīgā {C#FFFFFF}{WS} {WT}";
+  static const char textLine_6[] PROGMEM = "Show must go on!{C#000002}";
+  static const char textLine_7[] PROGMEM = "{C#FF000F}Krible! {C#000001}Krable!! {C#00FF00}Bums!!!{E24}";
+  static const char textLine_8[] PROGMEM = "Sagatavojieties, cilvēki {C#FF0300}tuvojas vasara!{S01.01.****#10.04.****}";
+  static const char textLine_9[] PROGMEM = "";
+  static const char textLine_A[] PROGMEM = "";
+  static const char textLine_B[] PROGMEM = "";
+  static const char textLine_C[] PROGMEM = "Laimīgu Jauno {C#00C911}{D:yyy+}{C#FFFFFF} gadu!{S01.12.****#31.12.****}";
+  static const char textLine_D[] PROGMEM = "";
+  static const char textLine_E[] PROGMEM = "";
+  static const char textLine_F[] PROGMEM = "{C#10FF00}Rīgā {C#FFFFFF}{WS} {WT}";
+  static const char textLine_G[] PROGMEM = "";
+  static const char textLine_H[] PROGMEM = "Šodien {D:d MMMM yyyy} gadi, {D:dddd}";
+  static const char textLine_I[] PROGMEM = "";
+  static const char textLine_J[] PROGMEM = "";
+  static const char textLine_K[] PROGMEM = "Priecīgus Ziemassvētkus!{S07.01.****}";
+  static const char textLine_L[] PROGMEM = "";
+  static const char textLine_M[] PROGMEM = "Šodien {D:dddd dd MMMM}, uz ielas {WS}, {WT}";
+  static const char textLine_N[] PROGMEM = "Priecīgus svētkus, kaimiņi!";
+  static const char textLine_O[] PROGMEM = "Neesiet garlaicīgi!";
+  static const char textLine_P[] PROGMEM = "";
+  static const char textLine_Q[] PROGMEM = "";
+  static const char textLine_R[] PROGMEM = "";
+  static const char textLine_S[] PROGMEM = "";
+  static const char textLine_T[] PROGMEM = "";
+  static const char textLine_U[] PROGMEM = "";
+  static const char textLine_V[] PROGMEM = "";
+  static const char textLine_W[] PROGMEM = "";
+  static const char textLine_X[] PROGMEM = "";
+  static const char textLine_Y[] PROGMEM = "Pacelieties {P7:30#Z#60#60#12345}!";
+  static const char textLine_Z[] PROGMEM = "Labrīt!";
+  #endif
+  // Darbības rezultātu virknes un daži citi ziņojumi, ko pārraida
+  // no programmaparatūras uz tīmekļa lietojumprogrammu, lai parādītu
+  static const char MSG_FILE_DELETED[] PROGMEM = "Izdzēsts fails";
+  static const char MSG_FILE_DELETE_ERROR[] PROGMEM = "Failu dzēšanas kļūda";
+  static const char MSG_FILE_SAVED[] PROGMEM = "Faili ir saglabāti";
+  static const char MSG_FILE_SAVE_ERROR[] PROGMEM = "Kļūda, rakstot failā";
+  static const char MSG_FILE_CREATE_ERROR[] PROGMEM = "Faila izveides kļūda";
+  static const char MSG_FOLDER_CREATE_ERROR[] PROGMEM = "Kļūda, izveidojot glabāšanas mapi";
+  static const char MSG_FILE_LOADED[] PROGMEM = "Augšupielādētais fails";
+  static const char MSG_FILE_LOAD_ERROR[] PROGMEM = "Failu nolasīšanas kļūda";
+  static const char MSG_FILE_NOT_FOUND[] PROGMEM = "Faili nav atrasti";
+  static const char MSG_FOLDER_NOT_FOUND[] PROGMEM = "Mapes nav atrastas";
+  static const char MSG_BACKUP_SAVE_ERROR[] PROGMEM = "Neizdevās dublēt iestatījumu rezerves kopiju";
+  static const char MSG_BACKUP_SAVE_OK[] PROGMEM = "Iestatījumu dublēšana";
+  static const char MSG_BACKUP_LOAD_ERROR[] PROGMEM = "Neizdevās ielādēt iestatījumu rezerves kopiju";
+  static const char MSG_BACKUP_LOAD_OK[] PROGMEM = "Iestatījumu atjaunošana no dublējuma";
+  static const char MSG_OP_SUCCESS[] PROGMEM = "Saglabāti iestatījumi";
+
+  static const char MODE_NIGHT_CLOCK[] PROGMEM = "Nakts pulksteņi";
+  static const char MODE_CLOCK[] PROGMEM = "Pulkstenis";
+  static const char MODE_RUNNING_TEXT[] PROGMEM = "Skrejošā līnija";
+  static const char MODE_LOAD_PICTURE[] PROGMEM = "Attēlu augšupielāde";
+  static const char MODE_DRAW[] PROGMEM = "Zīmēšana";
+  static const char MODE_DAWN[] PROGMEM = "Rītausma";
+
+  static const char WTR_LANG_YA[] = "lv"; // Яндекс.Погода - tikai šķiet, ka saprot. "ru" и "en"
+  static const char WTR_LANG_OWM[] = "lv"; // OpenWeatherMap = 2-[ valodas kods - ru,en,de,fr,it n tā tālāk. Ja valoda nezina - atgriežas kā par en
+#endif
+
 // ================================================================================================= 
 
 #ifndef UI

@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { MatDialogRef} from '@angular/material/dialog';
 import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { debounceTime, Subject, takeUntil } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
 import { ColorPickerComponent } from './components/color-picker/color-picker.component';
 import { CommonService, MessageType } from './services/common/common.service';
@@ -22,6 +22,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipDefaultOptions, MatTooltipModule} from '@angular/material/tooltip';
+import {Base} from "./components/base.class";
 
 export const customTooltipDefaults: MatTooltipDefaultOptions = {
   showDelay: 1000,
@@ -39,7 +40,7 @@ export const customTooltipDefaults: MatTooltipDefaultOptions = {
       TabEffectsComponent, TabTextsPanelComponent, TabClockComponent, TabAlarmComponent, TabModesComponent, TabDrawComponent, TabGamesComponent, TabSetupComponent
     ]
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent extends Base implements OnInit, OnDestroy {
   private static readonly DARK_THEME_CLASS = 'dark-theme';
 
   get isDarkTheme() {
@@ -67,8 +68,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private freeMemory: number = 0;
 
-  private destroy$ = new Subject();
-
   private colorDialogRef: MatDialogRef<ColorPickerComponent> | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document,
@@ -76,6 +75,7 @@ export class AppComponent implements OnInit, OnDestroy {
               public managementService: ManagementService,
               public commonService: CommonService,
               public L: LanguagesService) {
+    super();
     this.isDarkTheme = window.localStorage[AppComponent.DARK_THEME_CLASS] === 'true' || false;
 
     this.socketService.isConnected$
@@ -83,7 +83,7 @@ export class AppComponent implements OnInit, OnDestroy {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в главном экране
-          const request = 'W|H|PS|LG|VR|HN|QZ|FS|SX|CH|CV|WZ|AL|SM|LE|UP|FM|MC|MX|MZ';
+          const request = 'W|H|HN|CRLE|PS|LG|VR|FS|SX|CH|CV|WZ|AL|SM|UP|FM|PN|MC|MX|MZ|TM';
           this.managementService.getKeys(request);
         }
       });
@@ -156,9 +156,7 @@ export class AppComponent implements OnInit, OnDestroy {
     e.preventDefault();
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  debugOnOff() {
+    this.managementService.state.debug = !this.managementService.state.debug;
   }
-
 }

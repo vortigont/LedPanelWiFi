@@ -3,6 +3,7 @@ import {BehaviorSubject, interval, Observable, Observer, Subject, Subscription, 
 import {distinctUntilChanged, filter, map, share} from 'rxjs/operators';
 import {WebSocketSubject, WebSocketSubjectConfig} from 'rxjs/webSocket';
 import {environment} from "../../../environments/environment";
+import {Base} from "../../components/base.class";
 
 export const WS = {
   // 'Топики' получения состояния из устройства
@@ -19,7 +20,7 @@ export const WS = {
     TEXT:    'txt',	  // - сообщения о событиях бегущей строки - запуск, окончание
     E131:    'e131',  // - сообщения о событиях синхронизации между матрицами
     EDT:     'edt'	  // - сообщения c параметрами редактируемого эффекта
-    // @formatter:oт
+    // @formatter:on
   },
   // 'Топики' отправки команд в устройство
   SEND: {
@@ -45,12 +46,11 @@ export interface IWsMessage<T> {
 @Injectable({
   providedIn: 'root'
 })
-export class WebsocketService implements IWebsocketService, OnDestroy {
+export class WebsocketService extends Base implements IWebsocketService, OnDestroy {
+
+  public host: string = environment.production ? window.location.hostname : '192.168.0.100';
 
   private readonly config: WebSocketSubjectConfig<IWsMessage<any>>;
-
-  private websocketSub: Subscription;
-  private statusSub: Subscription;
 
   // Observable для реконнекта по interval
   private reconnection$: Observable<number> | null = null;
@@ -62,16 +62,15 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
   // вспомогательный Observable для работы с подписками на сообщения
   private wsMessages$: Subject<IWsMessage<any>>;
 
-  private url = environment.production ? `ws://${window.location.hostname}/ws` : 'ws://192.168.0.101/ws'; // 'ws://192.168.4.1/ws';
+  private url = `ws://${this.host}/ws`;
 
-  private pingInterval = 5000;
+  private pingInterval = 30000;
   private reconnectInterval = 5000;
   private last_ping_time: number = Date.now();
   private sentPing = false;
   private gotPong = false;
 
   private webSocketSubscription!: Subscription;
-  private destroy$ = new Subject();
 
   // -------------------------------------
 
@@ -85,6 +84,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
   // -------------------------------------
 
   constructor() {
+    super();
 
     this.config = {
       url: this.url,
@@ -100,6 +100,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
         next: (event: Event) => {
           console.log('WebSocket connected!');
           this.connection$?.next(true);
+          this.ping();
           this.firstConnect = false;
         }
       }
@@ -110,7 +111,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
       this.connection$ = observer;
     }).pipe(share(), distinctUntilChanged());
 
-    this.statusSub = this.status$
+    this.status$
       .pipe(takeUntil(this.destroy$))
       .subscribe((isConnected) => {
         if (this.isConnected !== isConnected) {
@@ -126,7 +127,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
 
     // говорим, что что-то пошло не так + проверка полученных в сокет данных
     this.wsMessages$ = new Subject<IWsMessage<any>>();
-    this.websocketSub = this.wsMessages$
+    this.wsMessages$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: IWsMessage<any>) => {
@@ -256,9 +257,8 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
   public sendText(text: string): void {
     this.send(WS.SEND.COMMAND, text);
   }
-  ngOnDestroy() {
+  override ngOnDestroy() {
     this.webSocketSubscription.unsubscribe();
-    this.destroy$.next(true);
-    this.destroy$.complete();
+    super.ngOnDestroy();
   }
 }

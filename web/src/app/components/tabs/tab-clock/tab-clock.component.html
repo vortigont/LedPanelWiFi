@@ -9,7 +9,7 @@
             <mat-slide-toggle color="primary" class="switch" [ngModel]="clock_use_overlay" (toggleChange)="toggleClockOverEffects()" [disabled]="isDisabled()"></mat-slide-toggle>
           </div>
           <div class="toggler-label">
-            <p>{{L.$('Часы поверх эффектов')}}</p>
+            <p>{{ L.$('Часы поверх эффектов') }}</p>
           </div>
         </div>
 
@@ -20,7 +20,7 @@
               <mat-select [(ngModel)]="clock_orientation" panelClass="app-select-panel shift-160px" [disableControl]="isDisabled()" (valueChange)="clockOrientationChanged($event)">
                 @for (orient of orient_list; track orient) {
                   <mat-option [value]="orient.value">
-                    {{orient.displayText}}
+                    {{ orient.displayText }}
                   </mat-option>
                 }
               </mat-select>
@@ -34,9 +34,9 @@
               <mat-label>{{ L.$('Цвет часов') }}</mat-label>
               <mat-select [(ngModel)]="clock_color_mode" panelClass="app-select-panel shift-160px" [disableControl]="isDisabled()" (valueChange)="clockColorModeChanged($event)">
                 @for (color of color_list; track color) {
-                <mat-option [value]="color.value">
-                {{color.displayText}}
-                </mat-option>
+                  <mat-option [value]="color.value">
+                    {{ color.displayText }}
+                  </mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -51,7 +51,7 @@
                         [displayWith]="formatLabel"
                         min="0" step="1" max="255">
               <input #sl matSliderThumb [value]="clock_scroll_speed" (valueChange)="speedChanged($event)">
-              <p>{{ toNumber(sl.value) <= 15 ? L.$('Выкл') : sl.value.toString() }}</p>
+              <p>{{ toNumber(sl.value) < 1 ? L.$('Выкл') : sl.value.toString() }}</p>
             </mat-slider>
           </div>
         }
@@ -61,40 +61,56 @@
             <mat-label>{{ L.$('Цвет ночных часов') }}</mat-label>
             <div class="night-colors">
               <div class="color-btn r">
-                <mat-icon class="tick" (click)="setNightColor(0)">{{clock_night_color === 0 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(0)">{{ clock_night_color === 0 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn g">
-                <mat-icon class="tick" (click)="setNightColor(1)">{{clock_night_color === 1 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(1)">{{ clock_night_color === 1 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn b">
-                <mat-icon class="tick" (click)="setNightColor(2)">{{clock_night_color === 2 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(2)">{{ clock_night_color === 2 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn c">
-                <mat-icon class="tick" (click)="setNightColor(3)">{{clock_night_color === 3 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(3)">{{ clock_night_color === 3 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn m">
-                <mat-icon class="tick" (click)="setNightColor(4)">{{clock_night_color === 4 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(4)">{{ clock_night_color === 4 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn y">
-                <mat-icon class="tick" (click)="setNightColor(5)">{{clock_night_color === 5 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(5)">{{ clock_night_color === 5 ? 'done' : '' }}</mat-icon>
               </div>
               <div class="color-btn w">
-                <mat-icon class="tick" (click)="setNightColor(6)">{{clock_night_color === 6 ? 'done' : ''}}</mat-icon>
+                <mat-icon class="tick" (click)="setNightColor(6)">{{ clock_night_color === 6 ? 'done' : '' }}</mat-icon>
               </div>
             </div>
           </div>
         }
+
+        <div class="field-container radio-buttons">
+          <mat-label>{{ L.$('12/24 формат') }}</mat-label>
+          <mat-radio-group [(ngModel)]="time12h" [disableControl]="isDisabled()" (change)="changeTimeFormat()" color="primary">
+            <mat-radio-button [value]="1" class="rb"> {{ L.$('12H') }}</mat-radio-button>
+            <mat-radio-button [value]="0" class="rb"> {{ L.$('24H') }}</mat-radio-button>
+          </mat-radio-group>
+        </div>
 
         @if (isLargeClockAvailable()) {
           <div class="field-container radio-buttons">
             <mat-label>{{ L.$('Размер часов') }}</mat-label>
             <mat-radio-group [(ngModel)]="clock_size" [disableControl]="isDisabled()" (change)="changeClockSize()" color="primary">
               <mat-radio-button [value]="0" class="rb"> {{ L.$('Авто') }}</mat-radio-button>
-              <mat-radio-button [value]="1" class="rb"> {{ L.$('3x5') }}</mat-radio-button>
-              <mat-radio-button [value]="2" class="rb"> {{ L.$('5x7') }}</mat-radio-button>
+              <mat-radio-button [value]="1" class="rb2"> {{ L.$('3x5') }}</mat-radio-button>
+              <mat-radio-button [value]="2" class="rb2"> {{ L.$('5x7') }}</mat-radio-button>
             </mat-radio-group>
           </div>
         }
+
+        <div class="field-container radio-buttons">
+          <mat-label>{{ L.$('Шрифт часов 3x5') }}</mat-label>
+          <mat-radio-group [(ngModel)]="small_font_type" [disableControl]="isDisabled()" (change)="changeFontType()" color="primary">
+            <mat-radio-button [value]="0" class="rb"> {{ L.$('Строгий') }}</mat-radio-button>
+            <mat-radio-button [value]="1" class="rb"> {{ L.$('Круглый') }}</mat-radio-button>
+          </mat-radio-group>
+        </div>
 
         @if (managementService.state.supportTM1637) {
           <div class="spacer"></div>
@@ -106,7 +122,7 @@
               <mat-slide-toggle color="primary" class="switch" [ngModel]="clock_tm1627_off" (toggleChange)="toggleTM1637()" [disabled]="isDisabled()"></mat-slide-toggle>
             </div>
             <div class="toggler-label">
-              <p>{{L.$('Выключать индикатор при выключении устройства')}}</p>
+              <p>{{ L.$('Выключать индикатор при выключении устройства') }}</p>
             </div>
           </div>
         }
@@ -121,19 +137,30 @@
                 <mat-slide-toggle color="primary" class="switch" [ngModel]="clock_show_temp" (toggleChange)="toggleTemperatureInClock()" [disabled]="isDisabled()"></mat-slide-toggle>
               </div>
               <div class="toggler-label">
-                <p>{{L.$('Показывать температуру в часах')}}</p>
+                <p>{{ L.$('Показывать температуру в часах') }}</p>
               </div>
             </div>
 
             <div class="field-container check">
               <mat-label>{{ L.$('Цветная температура') }}</mat-label>
-              <mat-checkbox class="example-margin" [checked]="clock_temp_color_day" color="primary" (change)="setTempUseDayColor($event.checked)">
+              <mat-checkbox [checked]="clock_temp_color_day" color="primary" (change)="setTempUseDayColor($event.checked)">
                 {{ L.$('Днем') }}
               </mat-checkbox>
-              <mat-checkbox class="example-margin" [checked]="clock_temp_color_night" color="primary" (change)="setTempUseNightColor($event.checked)">
+              <mat-checkbox [checked]="clock_temp_color_night" color="primary" (change)="setTempUseNightColor($event.checked)">
                 {{ L.$('Ночью') }}
               </mat-checkbox>
             </div>
+
+            <div class="field-container check">
+              <mat-label>{{ L.$('Отображать') }}</mat-label>
+              <mat-checkbox [checked]="show_degree" color="primary" (change)="setTempShowDegree($event.checked)">
+                {{ L.$('Градус') }}
+              </mat-checkbox>
+              <mat-checkbox [checked]="show_letter" color="primary" (change)="setTempShowLetter($event.checked)">
+                {{ L.$('C/F') }}
+              </mat-checkbox>
+            </div>
+
           </div>
         }
 
@@ -147,7 +174,7 @@
                 <mat-slide-toggle color="primary" class="switch" [ngModel]="clock_show_date" (toggleChange)="toggleDateInClock()" [disabled]="isDisabled()"></mat-slide-toggle>
               </div>
               <div class="toggler-label">
-                <p>{{L.$('Показывать дату в часах')}}</p>
+                <p>{{ L.$('Показывать дату в часах') }}</p>
               </div>
             </div>
 
@@ -195,7 +222,7 @@
 
             <div class="field-container buttons">
               <div class="action-button">
-                <button mat-raised-button color="primary" (click)="applyDateShow($event)" [disabled]="isDisabled() || !isValid()">{{L.$('Применить')}}</button>
+                <button mat-raised-button color="primary" (click)="applyDateShow($event)" [disabled]="isDisabled() || !isValid()">{{ L.$('Применить') }}</button>
               </div>
             </div>
 
@@ -204,86 +231,137 @@
       </fieldset>
     }
 
-    <fieldset class="app-fieldset clock-fieldset">
-      <legend>{{ L.$('Время интернета') }}</legend>
+    <div class="time-advanced">
+      <fieldset class="app-fieldset clock-fieldset time">
+        <legend>{{ L.$('Время интернета') }}</legend>
 
-      <div class="toggler-container ntp">
-        <div class="toggler">
-          <mat-slide-toggle color="primary" class="switch" [ngModel]="clock_use_ntp" (toggleChange)="toggleUseNtpClock()" [disabled]="isDisabled()"></mat-slide-toggle>
+        <div class="toggler-container ntp">
+          <div class="toggler">
+            <mat-slide-toggle (toggleChange)="toggleUseNtpClock()" [disabled]="isDisabled()" [ngModel]="clock_use_ntp" class="switch" color="primary"></mat-slide-toggle>
+          </div>
+          <div class="toggler-label">
+            <p>{{ L.$('Синхронизация NTP') }}</p>
+          </div>
+          <div class="set-time">
+            <button (click)="applySetClockTime($event)" [disabled]="isDisabled() || !isValid()" color="primary" mat-raised-button>{{ L.$('Установить текущее') }}</button>
+          </div>
         </div>
-        <div class="toggler-label">
-          <p>{{L.$('Синхронизация NTP')}}</p>
+
+        <div class="field-container ntp-serv">
+          <mat-form-field floatLabel="always" hintLabel="{{ L.$('до 30 символов') }}">
+            <mat-label>{{ L.$('Сервер NTP') }}</mat-label>
+            <input #inputNtp [disableControl]="isDisabled()" [errorStateMatcher]="matcher" [formControl]="ntpServerNameFormControl" autocomplete="new-password"
+                   matInput
+                   maxlength="30"
+                   required>
+            <mat-hint align="end">{{ inputNtp.value.length }}/30</mat-hint>
+            @if (ntpServerNameFormControl.hasError('required')) {
+              <mat-error>
+                {{ L.$('Поле не может быть пустым!') }}
+              </mat-error>
+            }
+          </mat-form-field>
         </div>
-        <div class="set-time">
-          <button mat-raised-button color="primary" (click)="applySetClockTime($event)" [disabled]="isDisabled() || !isValid()">{{L.$('Установить текущее')}}</button>
+
+        <div class="field-container ntp-serv">
+
+          <mat-form-field class="select" floatLabel="always">
+            <mat-label>{{ L.$('Зона времени') }}</mat-label>
+            <mat-select (valueChange)="timeAreaChanged($event)" [(ngModel)]="time_area" [disableControl]="isDisabled()" panelClass="app-select-panel shift-160px">
+              @for (area of time_area_list; track area) {
+                <mat-option [value]="area.value">
+                  {{ area.displayText }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field class="select" floatLabel="always">
+            <mat-label>{{ L.$('Часовой пояс') }}</mat-label>
+            <mat-select (valueChange)="timeZoneChanged($event)" [(ngModel)]="time_zone" [disableControl]="isDisabled()" panelClass="app-select-panel shift-160px">
+              @for (zone of getTimeZones(time_area); track zone) {
+                <mat-option [value]="zone.value">
+                  {{ zone.displayText }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
         </div>
-      </div>
 
-      <div class="field-container ntp-serv">
-        <mat-form-field hintLabel="{{ L.$('до 30 символов') }}" floatLabel="always">
-          <mat-label>{{ L.$('Сервер NTP') }}</mat-label>
-          <input matInput #inputNtp maxlength="30" required autocomplete="new-password"
-                 [formControl]="ntpServerNameFormControl"
-                 [disableControl]="isDisabled()"
-                 [errorStateMatcher]="matcher">
-          <mat-hint align="end">{{inputNtp.value.length}}/30</mat-hint>
-          @if (ntpServerNameFormControl.hasError('required')) {
-            <mat-error>
-              {{ L.$('Поле не может быть пустым!') }}
-            </mat-error>
-          }
-        </mat-form-field>
-      </div>
-
-      <div class="field-container ntp-serv">
-        <mat-form-field hintLabel="{{ L.$('Интервал синхронизации') }}" floatLabel="always" class="date">
-          <mat-label>{{ L.$('Синх. каждые') }}</mat-label>
-          <input matInput class="right" autocomplete="new-password" type="number" [min]="5" [max]="240" (keydown)="commonService.checkLength($event,3)" (keyup)="commonService.checkLength($event, 3)"
-                 [formControl]="ntpSyncIntervalFormControl"
-                 [disableControl]="isDisabled()"
-                 [errorStateMatcher]="matcher">
-          <p matTextSuffix="">{{ L.$('мин') }}</p>
-          @if (ntpSyncIntervalFormControl.hasError('required')) {
-            <mat-error>
-              {{ L.$('Поле не может быть пустым!') }}
-            </mat-error>
-          }
-          @if (ntpSyncIntervalFormControl.hasError('range') && !ntpSyncIntervalFormControl.hasError('required')) {
-            <mat-error>
-              {{ L.$('от 5 до 240 минут') }}
-            </mat-error>
-          }
-        </mat-form-field>
-
-        <div style="width:12px"></div>
-
-        <mat-form-field hintLabel="{{ L.$('Часовой пояс в формате ЧЧ:MM') }}" floatLabel="always" class="date">
-          <mat-label>{{ L.$('Часовой пояс') }}</mat-label>
-          <input matInput class="right" autocomplete="new-password" type="text" restrict inputType="timezone" (keydown)="commonService.checkLength($event, 6)" (keyup)="commonService.checkLength($event, 6)"
-                 [formControl]="ntpTimeZoneFormControl"
-                 [disableControl]="isDisabled()"
-                 [errorStateMatcher]="matcher">
-          @if (ntpTimeZoneFormControl.hasError('required')) {
-            <mat-error>
-              {{ L.$('Поле не может быть пустым!') }}
-            </mat-error>
-          }
-          @if (ntpTimeZoneFormControl.hasError('timezone') && !ntpTimeZoneFormControl.hasError('required')) {
-            <mat-error>
-              {{ L.$('Неверное значение часового пояса') }}
-            </mat-error>
-          }
-        </mat-form-field>
-      </div>
-
-      <div style="flex:1"></div>
-      <div class="field-container buttons">
-        <div class="action-button">
-          <button mat-raised-button color="primary" (click)="applySyncSettings($event)" [disabled]="isDisabled() || !isValidSync()">{{L.$('Применить')}}</button>
+        <div style="flex:1"></div>
+        <div class="field-container buttons">
+          <div class="action-button">
+            <button (click)="applySyncSettings($event)" [disabled]="isDisabled() || !isValidSync()" color="primary" mat-raised-button>{{ L.$('Применить') }}</button>
+          </div>
         </div>
-      </div>
 
-    </fieldset>
+      </fieldset>
 
+      @if (allowAdvanced) {
+        <fieldset class="app-fieldset clock-fieldset advanced">
+          <legend>{{ L.$('Расширенные настройки') }}</legend>
+
+          @if (allowX != 0) {
+            <div class="field-container slider">
+              <mat-label>{{ L.$('Смещение по X') }}</mat-label>
+              <mat-slider [disableRipple]="true" color="primary"
+                          [disabled]="isDisabled()"
+                          [displayWith]="formatLabel"
+                          min="{{-allowX}}" step="1" max="{{+allowX}}">
+                <input #slX matSliderThumb [value]="offsetX" (valueChange)="offsetXChanged($event)">
+                <p>{{ slX.value }}</p>
+              </mat-slider>
+            </div>
+          }
+
+          @if (allowY != 0) {
+            <div class="field-container slider">
+              <mat-label>{{ L.$('Смещение по Y') }}</mat-label>
+              <mat-slider [disableRipple]="true" color="primary"
+                          [disabled]="isDisabled()"
+                          [displayWith]="formatLabel"
+                          min="{{-allowY}}" step="1" max="{{+allowY}}">
+                <input #slY matSliderThumb [value]="offsetY" (valueChange)="offsetYChanged($event)">
+                <p>{{ slY.value }}</p>
+              </mat-slider>
+            </div>
+          }
+
+          @if (allowDotWidth || allowDotSpace) {
+            <div class="dot">
+
+              @if (allowDotWidth) {
+              <div class="toggler-container">
+                <div class="toggler-label">
+                  <p>{{ L.$('Ширина точки:') }} <span>&nbsp;&nbsp;&nbsp;1</span></p>
+                </div>
+                <div class="toggler">
+                  <mat-slide-toggle color="primary" class="switch" labelPosition="before" [ngModel]="dotWidthToggler" (toggleChange)="toggleDotWidth()" [disabled]="isDisabled()" ></mat-slide-toggle>
+                </div>
+                <div class="toggler-label">
+                  <span>&nbsp;2</span>
+                </div>
+              </div>
+              }
+
+              @if (allowDotSpace) {
+                <div class="toggler-container">
+                  <div class="toggler-label">
+                    <p>{{ L.$('Отступ у точки') }}</p>
+                  </div>
+                  <div class="toggler">
+                    <mat-slide-toggle color="primary" class="switch" labelPosition="before" [ngModel]="dotSpaceToggler" (toggleChange)="toggleDotSpace()" [disabled]="isDisabled()"></mat-slide-toggle>
+                  </div>
+                </div>
+              }
+
+            </div>
+          }
+
+        </fieldset>
+      }
+
+    </div>
   </div>
 </div>

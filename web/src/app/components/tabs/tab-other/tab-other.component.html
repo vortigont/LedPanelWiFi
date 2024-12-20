@@ -57,45 +57,67 @@
   </fieldset>
 
   @if (fs_allow || sd_allow) {
-    <fieldset class="app-fieldset other-fieldset">
+    <fieldset class="app-fieldset other-fieldset backup-fieldset">
       <legend>{{ L.$('Резервная копия настроек') }}</legend>
-      <div class="field-container nomargin">
-        <div class="action-button center">
-          @if (fs_allow && (backup_place === 1 || backup_place === 3)) {
-            <button mat-raised-button color="primary"
-                matTooltip="{{L.$('Загрузить с FS')}}"
-                [disabled]="isDisabled()"
-                (click)="loadFrom(0)">
-              <mat-icon matSuffix>publish</mat-icon>
-              <span>{{L.$('FS')}}</span>
-            </button>
-          }
-          @if (sd_allow && (backup_place === 2 || backup_place === 3)) {
-            <button mat-raised-button color="primary"
-                  matTooltip="{{L.$('Загрузить с SD')}}"
-                  [disabled]="isDisabled()"
-                  (click)="loadFrom(1)">
-              <mat-icon matSuffix>publish</mat-icon>
-              <span>{{L.$('SD')}}</span>
-            </button>
-          }
+      <div class="field-container nomargin backup-container">
+        <div class="action-button center backup">
           @if (fs_allow) {
-            <button mat-raised-button color="primary"
+            @if (backup_place === 1 || backup_place === 3) {
+              <button mat-raised-button color="primary" class="backup-btn"
+                  matTooltip="{{L.$('Загрузить с FS')}}"
+                  [disabled]="isDisabled()"
+                  (click)="loadFrom(0)">
+                <mat-icon matSuffix>settings_backup_restore</mat-icon>
+                <span>{{L.$('FS')}}</span>
+              </button>
+            }
+
+            <button mat-raised-button color="primary" class="backup-btn"
                   matTooltip="{{L.$('Сохранить в FS')}}"
                   [disabled]="isDisabled()"
                   (click)="saveTo(0)">
               <mat-icon matSuffix>save</mat-icon>
               <span>{{L.$('FS')}}</span>
             </button>
+
+            <div class="like-btn" matTooltip="{{L.$('Загрузить в контроллер')}}">
+              <label class="btn btn-default mat-button">
+                <mat-icon matSuffix>publish</mat-icon>
+                <span>{{L.$('FS')}}</span>
+                <form #uploadFileForm>
+                  <input name="file" type="file" style="display: none;" ng2FileSelect [uploader]="fileUploaderWrapper.getUploader()"
+                         (onFileSelected)="onUpload()" accept=".hex">
+                </form>
+              </label>
+            </div>
+            @if (backup_place === 1) {
+              <div class="like-btn" matTooltip="{{L.$('Сохранить в файл')}}">
+                <a href="{{'/assets/' + backup_file}}" download>
+                  <label class="btn btn-default mat-button">
+                    <mat-icon matSuffix>file_download</mat-icon>
+                    <span>{{L.$('FS')}}</span>
+                  </label>
+                </a>
+              </div>
+            }
           }
           @if (sd_allow) {
-            <button mat-raised-button color="primary"
-                  matTooltip="{{L.$('Сохранить в SD')}}"
-                  [disabled]="isDisabled()"
-                  (click)="saveTo(1)">
-              <mat-icon matSuffix>save</mat-icon>
-              <span>{{L.$('SD')}}</span>
-            </button>
+            @if (backup_place === 2 || backup_place === 3) {
+              <button mat-raised-button color="primary" class="backup-btn"
+                      matTooltip="{{L.$('Загрузить с SD')}}"
+                      [disabled]="isDisabled()"
+                      (click)="loadFrom(1)">
+                <mat-icon matSuffix>settings_backup_restore</mat-icon>
+                <span>{{L.$('SD')}}</span>
+              </button>
+              <button mat-raised-button color="primary" class="backup-btn"
+                      matTooltip="{{L.$('Сохранить в SD')}}"
+                      [disabled]="isDisabled()"
+                      (click)="saveTo(1)">
+                <mat-icon matSuffix>save</mat-icon>
+                <span>{{L.$('SD')}}</span>
+              </button>
+            }
           }
         </div>
       </div>
@@ -116,4 +138,110 @@
     </div>
   </fieldset>
 
+  @if (managementService.state.debug) {
+    <fieldset class="app-fieldset debug-fieldset">
+      <div class="field-container nomargin">
+        <mat-form-field hintLabel="{{ L.$('от 0 до 23') }}" floatLabel="always">
+          <mat-label>{{ L.$('Час') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="0" [max]="23" (keydown)="commonService.checkLength($event,2)" (keyup)="commonService.checkLength($event, 2)"
+                 [formControl]="hoursFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if (hoursFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от 0 до 23') }}
+            </mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field hintLabel="{{ L.$('от 0 до 59') }}" floatLabel="always">
+          <mat-label>{{ L.$('Мин') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="0" [max]="59" (keydown)="commonService.checkLength($event,2)" (keyup)="commonService.checkLength($event, 2)"
+                 [formControl]="minutesFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if ( minutesFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от 0 до 59') }}
+            </mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field hintLabel="{{ L.$('от 40 до +40') }}" floatLabel="always">
+          <mat-label>{{ L.$('Темп. °C') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="-40" [max]="40" (keydown)="commonService.checkLength($event,3)" (keyup)="commonService.checkLength($event, 3)"
+                 [formControl]="temperatureFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if (temperatureFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от -40 до 40') }}
+            </mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field hintLabel="{{ L.$('от 1 до 31') }}" floatLabel="always">
+          <mat-label>{{ L.$('День') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="1" [max]="31" (keydown)="commonService.checkLength($event,2)" (keyup)="commonService.checkLength($event, 2)"
+                 [formControl]="daysFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if (daysFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от 1 до 31') }}
+            </mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field hintLabel="{{ L.$('от 1 до 12') }}" floatLabel="always">
+          <mat-label>{{ L.$('Мес.') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="1" [max]="12" (keydown)="commonService.checkLength($event,2)" (keyup)="commonService.checkLength($event, 2)"
+                 [formControl]="monthFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if ( monthFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от 1 до 12') }}
+            </mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field hintLabel="{{ L.$('от 1900 до 2100') }}" floatLabel="always">
+          <mat-label>{{ L.$('Год') }}</mat-label>
+          <input matInput required autocomplete="new-password" type="number" class="size" [min]="1900" [max]="2100" (keydown)="commonService.checkLength($event,4)" (keyup)="commonService.checkLength($event, 4)"
+                 [formControl]="yearFormControl"
+                 [disableControl]="isDisabled()"
+                 [errorStateMatcher]="matcher">
+          @if (yearFormControl.hasError('range')) {
+            <mat-error>
+              {{ L.$('от 1900 до 2100') }}
+            </mat-error>
+          }
+        </mat-form-field>
+      </div>
+      <div class="send-button">
+        <div class="arrows">
+          <button mat-raised-button color="primary" class="narrow"
+                  [disabled]="isDisabled()"
+                  (click)="left()">
+            <mat-icon>arrow_back</mat-icon>
+          </button>
+          <button mat-raised-button color="primary" class="narrow"
+                  [disabled]="isDisabled()"
+                  (click)="right()">
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+          <button mat-raised-button color="primary" class="narrow"
+                  [disabled]="isDisabled()"
+                  (click)="reset()">
+            <mat-icon class="rot90">vertical_align_center</mat-icon>
+          </button>
+        </div>
+        <mat-checkbox class="example-margin" [checked]="managementService.state.debug_cross" color="primary" (change)="crossOnOf($event.checked)">
+          {{ L.$('Крест') }}
+        </mat-checkbox>
+        <button mat-raised-button color="primary"
+                [disabled]="isDisabled() || !isDebigValid()"
+                (click)="send()">
+          {{L.$('Отправить')}}
+        </button>
+      </div>
+    </fieldset>
+  }
 </div>

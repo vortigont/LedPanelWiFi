@@ -1,11 +1,10 @@
 import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, fromEvent, interval, Observable, Subject, Subscription, takeUntil} from 'rxjs';
+import {debounceTime, fromEvent, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
-import {MatDialog, MatDialogRef} from "@angular/material/dialog";
-import {ColorPickerComponent} from "../../color-picker/color-picker.component";
+import {MatDialog} from "@angular/material/dialog";
 import { DOCUMENT, NgClass } from "@angular/common";
 import {distinctUntilChanged} from "rxjs/operators";
 import {HSLA, HSVA, RGBA} from "ngx-color";
@@ -24,6 +23,7 @@ import { ColorCircleModule } from 'ngx-color/circle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { ColorPhotoshopModule } from 'ngx-color/photoshop';
+import {Base} from "../../base.class";
 
 @Component({
     selector: 'app-tab-draw',
@@ -46,7 +46,7 @@ import { ColorPhotoshopModule } from 'ngx-color/photoshop';
         MatInputModule,
     ],
 })
-export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
+export class TabDrawComponent extends Base implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChild('canvas_container') canvasContainer!: ElementRef;
   @ViewChild('canvas') canvas!: ElementRef;
@@ -86,14 +86,13 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
   private loadIndex: number = -1;     // индекс загружаемой строки / колонки
   private intervalId: any = undefined;
 
-  private destroy$ = new Subject();
-
   constructor(@Inject(DOCUMENT) private document: Document,
               public socketService: WebsocketService,
               public managementService: ManagementService,
               public commonService: CommonService,
               public L: LanguagesService,
               private dialog: MatDialog) {
+    super();
   }
 
   ngOnInit() {
@@ -106,7 +105,7 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в главном экране
-          const request: string = `FS|SX|CL|FL${this.storage}`;
+          const request: string = `FS|SX|CL|CRF${this.storage}`;
           this.managementService.getKeys(request);
         }
         // Если соединение пропало во время загрузки картинки - остановить
@@ -225,8 +224,8 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
     // Получить список картинок, найденных в файловой системе или на SD карте в зависимости от
     // текущего выбранного хранилища
     setTimeout(() => {
-      this.managementService.getKeys(`FL${this.storage}`);
-    }, 1000);
+      this.managementService.getKeys(`CRF${this.storage}`);
+    }, 500);
   }
 
   isDisabled(): boolean {
@@ -491,7 +490,7 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   changeStorage() {
-    this.managementService.getKeys(`FL${this.storage}`);
+    this.managementService.getKeys(`CRF${this.storage}`);
     this.picture_file = -1;
   }
 
@@ -551,9 +550,8 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
 
   }
 
-  ngOnDestroy() {
+  override ngOnDestroy() {
     this.stopLoadImage();
-    this.destroy$.next(true);
-    this.destroy$.complete();
+    super.ngOnDestroy();
   }
 }

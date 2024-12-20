@@ -1,10 +1,16 @@
 
 #if (USE_WEATHER == 1)     
 
+  #if defined(ESP32)
+    #include <HTTPClient.h>
+    #include <WiFiClientSecure.h>
+  #else    
+    #include <ESP8266HTTPClient.h>
+    #include <WiFiClient.h>
+  //#include <WiFiClientSecureBearSSL.h>
+  #endif
+
 bool getWeather() {
-  
-  // Yandex.ru:          https://yandex.ru/time/sync.json?geo=62
-  // OpenWeatherMap.com: http://api.openweathermap.org/data/2.5/weather?id=1502026&lang=ru&units=metric&appid=6a4ba421859c9f4166697758b68d889b
 
   // Пока включена отладка позиционирования часов - запросы на температуру не выполнять
   if (debug_hours >= 0 && debug_mins >= 0) return true;
@@ -14,93 +20,196 @@ bool getWeather() {
   DEBUGLN();
   DEBUGLN(F("Запрос текущей погоды"));
 
-  // Объект для работы с удалёнными хостами - соединение с сервером погоды
-  WiFiClient w_client;                        
+  bool   error = false;
 
-  if (useWeather == 1) {
-    if (!w_client.connect("yandex.com",443)) return false;                 // Устанавливаем соединение с указанным хостом (Порт 443 для https)
-    // Отправляем запрос
-    String wtr_lang(WTR_LANG_YA);
-    String str(F("GET /time/sync.json?geo=")); str += regionID; str += F("&lang="); str += wtr_lang; str += F(" HTTP/1.1\r\nHost: yandex.com\r\n\r\n");
-    w_client.println(str); 
-  } else if (useWeather == 2) {
-    if (!w_client.connect("api.openweathermap.org",80)) return false;      // Устанавливаем соединение с указанным хостом (Порт 80 для http)
-    // Отправляем запрос    
-    String wtr_lang(WTR_LANG_OWM);
-    String wtr_api_key(WEATHER_API_KEY);
-    String str(F("GET /data/2.5/weather?id=")); str += regionID2; str += F("&units=metric&lang="); str += wtr_lang; str += F("&appid="); str += wtr_api_key; str += F(" HTTP/1.1\r\nHost: api.openweathermap.org\r\n\r\n");
-    w_client.println(str);     
-  }  
+  String payload;
+  String status(25);
+  String regId(useWeather == 1 ? regionID : regionID2);
 
-  doc.clear();
-  doc["act"] = String(sWEATHER);
-  doc["region"] = useWeather == 1 ? regionID : regionID2;
-  
-  // Проверяем статус запроса
-  char status[32] = {0};
-  w_client.readBytesUntil('\r', status, sizeof(status));
-  
-  // It should be "HTTP/1.0 200 OK" or "HTTP/1.1 200 OK"
-  if (strcmp(status + 9, "200 OK") != 0) {
+  #if defined(ESP32)
+    WiFiClientSecure *w_client = new WiFiClientSecure; 
+    // Ignore SSL certificate validation
+    w_client->setInsecure();
+  #else
+    //std::unique_ptr<BearSSL::WiFiClientSecure>w_client(new BearSSL::WiFiClientSecure());
+    //w_client->setInsecure();
+    WiFiClient *w_client = new WiFiClient;
+  #endif
+
+  if (w_client) 
+  {
+    {
+      HTTPClient https;
+
+      //String request = "https://yandex.com/time/sync.json?geo=62";
+      //String request = "https://api.openweathermap.org/data/2.5/weather?id=1502026&lang=ru&units=metric&appid=6a4ba421859c9f4166697758b68d889b";
+
+      //String request = "http://194.58.103.72/http2https.php?https://yandex.com/time/sync.json?geo=62&lang=ru";
+      //String request = "http://api.openweathermap.org/data/2.5/weather?id=1502026&lang=ru&units=metric&appid=6a4ba421859c9f4166697758b68d889b";
+      //String request = "http://api.weatherbit.io/v2.0/current?city_id=1502026&key=4b3b38ff98a14fbeb01b6dd5bc409c9b&lang=ru"
+      //String request = "http://api.open-meteo.com/v1/forecast?latitude=56.010563&longitude=92.852572&current=temperature_2m,weather_code&daily=sunrise,sunset&timeformat=unixtime&forecast_days=1"
+
+      /*
+        Скрипт шлюза http2https от Сотнег. Спасибо, добрый человек!
+        <?
+          $url = $_SERVER['QUERY_STRING'];
+          $url_check1 = 'https://api.weather.yandex.ru/'; // этот домен разрешён
+
+          if (strncasecmp($url, $url_check1, strlen($url_check1)) == 0)
+            {
+              $ch = curl_init($url);
+              curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+              curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+              curl_setopt($ch, CURLOPT_HEADER, false);
+              $html = curl_exec($ch);
+              curl_close($ch);
+              echo $html;
+            }
+            else echo 'nope';
+        ?>
+      */
+
+      String request(150);
+
+      #if defined(ESP32)
+        // В ESP32 достаточно памяти, чтобы работал https протокол - используем его
+        if (useWeather == 1) {
+          request  = F("https://yandex.com/time/sync.json?geo="); request += String(regionID); 
+          request += F("&lang="); request += WTR_LANG_YA; 
+        } else if (useWeather == 2) {    
+          request  = F("https://api.openweathermap.org/data/2.5/weather?id="); request += String(regionID2); 
+          request += F("&units=metric&lang="); request += WTR_LANG_OWM;
+          request += F("&appid="); request += OWM_WEATHER_API_KEY;
+        }  
+        String protocol = F("HTTPS");
+      #else
+        // В ESP8266 недостаточно памяти, соединение по https протоколу завершается ошибкой подключения к серверу - используем получение погоды по http
+        if (useWeather == 1) {
+          // С 28.07.2024 Яндекс перестал отдавать погоду по HTTP, перенаправляет на HTTPS запрос, но мы его обработать не можем :(
+          // Добрый человек Сотнег поделился скриптом для шлюза http2https 
+          // Добрый человек Zordog, предоставил доступ к своему серверу, на который установил скрипит http2https от Сотнег
+          // Погода от Яндекс по http снова работает!
+          request  = F("http://194.58.103.72/http2https.php?https://yandex.com/time/sync.json?geo="); request += String(regionID); 
+          request += F("&lang="); request += WTR_LANG_YA; 
+        } else if (useWeather == 2) {    
+          request  = F("http://api.openweathermap.org/data/2.5/weather?id="); request += String(regionID2); 
+          request += F("&units=metric&lang="); request += WTR_LANG_OWM;
+          request += F("&appid="); request += OWM_WEATHER_API_KEY;
+        }  
+        String protocol = F("HTTP");
+      #endif
+
+      if (https.begin(*w_client, request.c_str())) {
+        DEBUGLOG(printf,"[%s] GET...\n", protocol.c_str());
+        // start connection and send HTTP header
+        int httpCode = https.GET();
+        // httpCode will be negative on error
+        if (httpCode > 0) {
+          // HTTP header has been send and Server response header has been handled
+          DEBUGLOG(printf, "[%s] GET... code: %d\n", protocol.c_str(), httpCode);
+          // file found at server
+          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+            payload = https.getString();
+            // DEBUGLN(payload);
+          } else {
+            error = true;
+            status = F("unexpected answer");    // http.errorToString(httpCode)
+            DEBUGLOG(printf, "[%s] GET... failed, error: %s\n", protocol.c_str(), https.errorToString(httpCode).c_str());
+          }
+        } else {
+          error = true;
+          status = F("connection error");
+          DEBUGLOG(printf, "[%s] Unable to connect, error: %s\n", protocol.c_str(), https.errorToString(httpCode).c_str());
+        }
+
+        https.end();
+      } else {
+        error = true;
+        status = F("connection error");
+        DEBUGLOG(printf, "[%s] Unable to connect", protocol.c_str());
+      }
+    }
+
+    w_client->stop();   
+    delete w_client;
+
+  } else {
+    status = F("connection error");
+    error = true;
+  }
+
+  if (error) {
     DEBUG(F("Ошибка сервера погоды: "));
     DEBUGLN(status);
     
+    doc.clear();
+    doc["act"] = FPSTR(sWEATHER);
+    doc["region"] = regId;
     doc["result"] = F("ERROR");
     doc["status"] = status;
-    
+
     String out;
     serializeJson(doc, out);      
     doc.clear();
     
     SendWeb(out, TOPIC_WTR);
 
-    w_client.stop();
     return false;
   } 
 
-  // Пропускаем заголовки                                                                
-  char endOfHeaders[] = "\r\n\r\n";                                         // Системные заголовки ответа сервера отделяются от остального содержимого двойным переводом строки
-  if (!w_client.find(endOfHeaders)) {                                       // Отбрасываем системные заголовки ответа сервера
-    DEBUGLN(F("Нераспознанный ответ сервера погоды"));                      // Если ответ сервера не содержит системных заголовков, значит что-то пошло не так
 
-    doc["result"] = F("ERROR");
-    doc["status"] = F("unexpected answer");
+  // Нам не нужно доставать все данные из ответа. Задаем фильтр - это существенно уменьшит размер требуемой памяти 
+  {
+    #if ARDUINOJSON_VERSION_MAJOR == 6
+      StaticJsonDocument<200> filter;
+    #else
+      ArduinoJson::V721PB22::JsonDocument filter;
+    #endif
     
-    String out;
-    serializeJson(doc, out);      
+    if (useWeather == 1) {
+      // Yandex
+      filter["clocks"][regId]["weather"]["temp"] = true;  // Достаём температуру - Четвёртый уровень вложенности пары ключ/значение clocks -> значение RegionID -> weather -> temp
+      filter["clocks"][regId]["skyColor"] = true;         // Рекомендованный цвет фона
+      filter["clocks"][regId]["isNight"] = true;
+      filter["clocks"][regId]["weather"]["icon"] = true;  // Достаём иконку - Четвёртый уровень вложенности пары ключ/значение clocks -> значение RegionID -> weather -> icon
+      filter["clocks"][regId]["name"] = true;             // Город
+      filter["clocks"][regId]["sunrise"] = true;          // Время рассвета
+      filter["clocks"][regId]["sunset"] = true;           // Время заката
+    } else {
+      // OpenWeatherMap
+      filter["main"]["temp"] = true;                      // Температура -> main -> temp
+      filter["weather"][0]["icon"] = true;                // Достаём иконку -> weather[0] -> icon
+      filter["name"] = true;                              // Город
+      filter["weather"][0]["description"] = true;         // Строка погодных условий на языке, указаном в запросе
+      filter["weather"][0]["id"] = true;                  // Уточненный код погодных условий
+      filter["sys"]["sunrise"] = true;                    // Время рассвета
+      filter["sys"]["sunset"] = true;                     // Время заката    
+    }
+    
+    // Parse JSON object
     doc.clear();
+    DeserializationError jsn_error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
 
-    SendWeb(out, TOPIC_WTR);
+    if (jsn_error) {
+      DEBUG(F("JSON не разобран: "));
+      DEBUGLN(jsn_error.c_str());
 
-    w_client.stop();
-    return false;                                                           // и пора прекращать всё это дело
+      doc.clear();
+      doc["result"] = F("ERROR");
+      doc["status"] = F("json error");
+      
+      String out;
+      serializeJson(doc, out);      
+      doc.clear();
+
+      SendWeb(out, TOPIC_WTR);
+      
+      return false;
+    }
   }
-
-  // Parse JSON object
-  doc.clear();
-  DeserializationError error = deserializeJson(doc, w_client);
-  w_client.stop();
-
-  if (error) {
-    DEBUG(F("JSON не разобран: "));
-    DEBUGLN(error.c_str());
-
-    doc.clear();
-    doc["result"] = F("ERROR");
-    doc["status"] = F("json error");
-    
-    String out;
-    serializeJson(doc, out);      
-    doc.clear();
-
-    SendWeb(out, TOPIC_WTR);
-    
-    return false;
-  }
-
-  String regId(useWeather == 1 ? regionID : regionID2);
-  String town, sunrise, sunset;
   
+  String town, sunrise, sunset;
+
   if (useWeather == 1) {
     /*
     Yandex: {"time":1597989853200,
@@ -154,7 +263,8 @@ bool getWeather() {
 
     // Для срабатывания триггера на изменение значений
     set_temperature(temperature);
-  } else {
+    
+  } else if (useWeather == 2) {
   /*
    OpenWeatherMap: {"coord":{"lon":92.79,"lat":56.01},
                     "weather":[{"id":620,"main":"Snow","description":"light shower snow","icon":"13n"}],
@@ -171,7 +281,8 @@ bool getWeather() {
                     "cod":200
                    }
   */
-    temperature  = doc["main"]["temp"].as<int8_t>();                      // Температура -> main -> temp
+    float tmp    = doc["main"]["temp"].as<float>();
+    temperature  = int(round(tmp));                                       // Температура -> main -> temp
     icon         = doc["weather"][0]["icon"].as<String>();                // Достаём иконку -> weather[0] -> icon
     isNight      = icon.endsWith("n");                                    // Иконка вида "XXn" - ночная "XXd" - дневная
     town         = doc["name"].as<String>();                              // Город
@@ -204,7 +315,7 @@ bool getWeather() {
   }
   
   if (!weather_ok) {
-    DEBUG(F("JSON не содержит данных о погоде"));  
+    DEBUGLN(F("JSON не содержит данных о погоде"));  
     doc["result"] = F("ERROR");
     doc["status"] = F("no data");
 
@@ -217,18 +328,19 @@ bool getWeather() {
     return false;
   }
 
-  if (weather.length() == 0) {  
-    if (useWeather == 1)
-      decodeWeather();        // Yandex
-    else  
-      decodeWeather2();       // OpenWeatherMap
-  }
+  if (useWeather == 1)
+    decodeWeather();        // Yandex
+  else  
+    decodeWeather2();       // OpenWeatherMap
   
   weather_time = millis();  // запомнить время получения погоды с сервера
   init_weather = true;      // Флаг - погода получена
   refresh_weather = false;
   weather_t = 0; 
   weather_cnt = 0;
+
+  // Следующий хапрос погоды - через SYNC_WEATHER_PERIOD минут
+  weatherTimer.setInterval(1000 * 60 * SYNC_WEATHER_PERIOD);
   
   DEBUG(F("Погода получена: "));
   if (useWeather == 1) {
@@ -247,7 +359,6 @@ bool getWeather() {
     { DEBUG(F("Цвет неба: '")); DEBUG(skyColor); DEBUGLN("'"); }
   else
     { DEBUG(F("Код погоды: ")); DEBUGLN(weather_code); }
-  DEBUG(F("Сейчас: "));
   DEBUGLN(dayTime);
   DEBUG(F("Рассвет: "));
   DEBUGLN(sunrise);
@@ -306,14 +417,12 @@ bool getWeather() {
 */
 
 void decodeWeather(){  
+
   bool hasDay   = icon.endsWith("-d");
   bool hasNight = icon.endsWith("-n");
   String ico(icon);
   
-  if (hasDay)
-    dayTime = F("Светлое время суток");  // Сейчас день
-  else if (hasNight)           
-    dayTime = F("Темное время суток");   // Сейчас ночь
+  dayTime = isNight ? F("Темное время суток") : F("Светлое время суток");
 
   if (hasDay || hasNight) {
     ico = icon.substring(0, icon.length() - 2);
@@ -340,18 +449,14 @@ void decodeWeather(){
 }
 
 void decodeWeather2(){  
-  bool hasDay   = icon.endsWith("d");
-  bool hasNight = icon.endsWith("n");
   
-  if (hasDay)
-    dayTime = F("Светлое время суток");  // Сейчас день
-  else if (hasNight)           
-    dayTime = F("Темное время суток");   // Сейчас ночь
+  dayTime = isNight ? F("Темное время суток") : F("Светлое время суток");
 
   // Расшифровка погоды при указании в запросе "&lang=ru" сразу возвращается на нужном языке и нет
   // надобности расшифровывать код. Если почему-то расшифровка оказалась пуста - создать ее из кода погодных условия.
-  if (weather.length() > 0) return;
-  
+  // OpenWeatherMap не отдает погоду на латышском. Вместо него - на английском
+  // Для латышского языка включаем принудительное перекодирование
+
   // https://openweathermap.org/weather-conditions#How-to-get-icon-URL
   switch (weather_code) {
     case 200: set_weather(W_CODE_200); break;                     // thunderstorm with light rain
@@ -413,27 +518,16 @@ void decodeWeather2(){
 }
 
 // Строка цвета, соответствующая температуре
-String getTemperatureColor(int8_t temp) {
-  String s_color;
-  if      (temp <= -30)
-    s_color = cold_less_30;
-  else if (temp <= -20)
-    s_color = cold_29_20;
-  else if (temp <= -10)
-    s_color = cold_19_10;
-  else if (temp <= -4)
-    s_color = cold_9_4;
-  else if (temp <=  3)
-    s_color = zero_3_3;
-  else if (temp <=  9)
-    s_color = hot_4_9;
-  else if (temp <= 19)
-    s_color = hot_10_19;
-  else if (temp <= 29)
-    s_color = hot_20_29;
-  else
-    s_color = hot_30_great;
-  return s_color;
+int getTemperatureColor(int8_t temp) {
+  if (temp <= -30) return cold_less_30;
+  if (temp <= -20) return cold_29_20;
+  if (temp <= -10) return cold_19_10;
+  if (temp <= -4)  return cold_9_4;
+  if (temp <=  3)  return zero_3_3;
+  if (temp <=  9)  return hot_4_9;
+  if (temp <= 19)  return hot_10_19;
+  if (temp <= 29)  return hot_20_29;
+  return hot_30_great;  
 }
 
 // Получить индекс иконки в массиве иконок погоды
@@ -538,10 +632,13 @@ bool getWeather() {
 
 #endif
 
+#if (USE_ANIMATION == 1)
+
 uint8_t fade_weather_phase = 0;        // Плавная смена картинок: 0 - плавное появление; 1 - отображение; 2 - затухание
 uint8_t fade_step = 0;
 uint8_t weather_frame_num = 0;
 int8_t  weather_text_x, weather_text_y;
+
 
 void weatherRoutine() {
 
@@ -550,7 +647,8 @@ void weatherRoutine() {
     // Есть ли возможность отрисовки температуры большим шрифтом?
     bool big_font = c_size == 2 && (pWIDTH > image_desc.frame_width + 10 || pHEIGHT > image_desc.frame_height + 7);
 
-    uint8_t t = abs(temperature);
+    int8_t  th = (isFarenheit ? (round(temperature * 9 / 5) + 32) : temperature);
+    uint8_t t = abs(th);
     uint8_t dec_t = t / 10;
     uint8_t edc_t = t % 10;
 
@@ -568,10 +666,10 @@ void weatherRoutine() {
       if (edc_t == 1) temp_width -= 1;            // 1 занимает 2 колонки а не 3
     }
 
-    // Если температура 0 - нужно рисовать знак градуса или букву 'c'
+    // Если температура 0 - нужно рисовать знак градуса или букву 'c'/'f'
     // Если температура другая - для большого шрифта, если позволяет место - рисовать знак градуса. Если не позволяет - не рисовать.
-    bool need_deg = (t == 0) || (big_font && t != 0);
-    if (need_deg) temp_width += (big_font ? (t == 0 ? 0 : 4) : (t == 0 ? 3 : 0));    
+    bool need_deg = (th == 0) || (big_font && th != 0);
+    if (need_deg) temp_width += (big_font ? (th == 0 ? 0 : 4) : (th == 0 ? 3 : 0));    
   #endif
   
   if (loadingFlag) {
@@ -598,9 +696,6 @@ void weatherRoutine() {
     fade_weather_phase = init_weather ? 1 : 0;                         // плавное появление картинки
   }  
 
-  // Если совсем задержки нет - матрица мерцает от постоянного обновления
-  delay(5);
-
   #if (USE_WEATHER == 1)     
     if (useWeather > 0) {
       pos_x = (pWIDTH - image_desc.frame_width - temp_width) / 2 + 1;
@@ -609,7 +704,7 @@ void weatherRoutine() {
       while(pos_y + image_desc.frame_height > pHEIGHT) pos_y--;
       // Если знак градуса не обязателен к рисованию и он не влазит в ширину - уменьшить ширину текста температуры на знакоместо градуса
       // Исключение - если цифры температуры целиком ниже картинки - знак градуса можно оставить
-      if (need_deg && big_font && t != 0 && ((image_desc.frame_width + temp_width) > pWIDTH) && ((image_desc.frame_height + 7) > pHEIGHT)) {
+      if (need_deg && big_font && th != 0 && ((image_desc.frame_width + temp_width) > pWIDTH) && ((image_desc.frame_height + 7) > pHEIGHT)) {
         need_deg = false;
         temp_width -= 4;
         pos_x += 2;
@@ -651,6 +746,11 @@ void weatherRoutine() {
       }
     }
   #endif
+
+  // Отображение картинок погоды - довольно статичное. Не нужно слишком часто перерисовывать картинку
+  bool need_draw = millis() - last_draw_frame >= 100;
+  if (!need_draw) return; 
+  last_draw_frame = millis();
 
   // Нарисовать картинку
   loadImageFrame(weather_array[weather_frame_num]);
@@ -707,28 +807,40 @@ void weatherRoutine() {
   if (useWeather > 0 && init_weather) {
     
     // Получить цвет отображения значения температуры
-    CRGB color = useTemperatureColor ? CRGB(HEXtoInt(getTemperatureColor(temperature))) : CRGB::White;
+    CRGB color = useTemperatureColor ? CRGB(getTemperatureColor(th)) : CRGB::White;
     int16_t temp_x = weather_text_x + temp_width;
     int16_t temp_y = weather_text_y;
     
     // Для правильного позиционирования - рисуем справа налево
-    // Нужно ли рисовать букву "c" в малом шрифте или знак градуса в большом шрифте?
+    // Нужно ли рисовать букву "c"/"f" в малом шрифте или знак градуса в большом шрифте?
     if (need_deg) {
       if (big_font) {
         temp_x -= 4;  
         // Для больших часов рисуем значок градуса
         for(uint8_t i = 0; i < 2; i++) drawPixelXY(getClockX(temp_x), temp_y + 4 + i, color);      
-        drawPixelXY(getClockX(temp_x + 1), temp_y+3, color);      
-        drawPixelXY(getClockX(temp_x + 1), temp_y+6, color);      
+        drawPixelXY(getClockX(temp_x + 1), temp_y + 3, color);      
+        drawPixelXY(getClockX(temp_x + 1), temp_y + 6, color);      
         for(uint8_t i = 0; i < 2; i++) drawPixelXY(getClockX(temp_x+2), temp_y + 4 + i, color);      
       } else {
         temp_x -= 3;  
-        // При температуре = 0 - рисуем маленький значок C
-        for(uint8_t i = 0; i < 3; i++) {
-          drawPixelXY(getClockX(temp_x), temp_y + i, color);      
+        // При температуре = 0 - рисуем маленький значок C/F
+        if (isFarenheit) {
+          // буква F
+          for(uint8_t i = 0; i < 5; i++) {
+            drawPixelXY(getClockX(temp_x), temp_y + i, color);      
+          }
+          for(uint8_t i = 0; i < 2; i++) {
+            drawPixelXY(getClockX(temp_x + 1 + i), temp_y + 4, color); 
+          }     
+          drawPixelXY(getClockX(temp_x + 1), temp_y + 2, color);              
+        } else {
+          // буква C
+          for(uint8_t i = 0; i < 3; i++) {
+            drawPixelXY(getClockX(temp_x), temp_y + i, color);      
+          }
+          drawPixelXY(getClockX(temp_x + 1), temp_y, color);      
+          drawPixelXY(getClockX(temp_x + 1), temp_y + 2, color);      
         }
-        drawPixelXY(getClockX(temp_x + 1), temp_y, color);      
-        drawPixelXY(getClockX(temp_x + 1), temp_y + 2, color);      
       }
     }
 
@@ -756,19 +868,21 @@ void weatherRoutine() {
             
     // Нарисовать '+' или '-' если температура не 0
     // Горизонтальная черта - общая для '-' и '+'
-    if (temperature != 0) {
-      uint8_t dy = big_font ? 2 : 0;
+    if (th != 0) {
+      uint8_t dy = big_font ? 2 : 1;
       temp_x -= 4;
       for(uint8_t i = 0; i < 3; i++) {
-        drawPixelXY(getClockX(temp_x + i), temp_y + 2 + dy, color);      
+        drawPixelXY(getClockX(temp_x + i), temp_y + 1 + dy, color);      
       }      
       // Для плюса - вертикальная черта
-      if (temperature > 0) {
-        drawPixelXY(getClockX(temp_x + 1), temp_y + 1 + dy, color);
-        drawPixelXY(getClockX(temp_x + 1), temp_y + 3 + dy, color);
+      if (th > 0) {
+        drawPixelXY(getClockX(temp_x + 1), temp_y + 0 + dy, color);
+        drawPixelXY(getClockX(temp_x + 1), temp_y + 2 + dy, color);
       }
     }    
   }
   
   #endif  
 }
+
+#endif

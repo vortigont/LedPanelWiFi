@@ -1,5 +1,5 @@
-import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
@@ -15,43 +15,77 @@ import { MatButtonModule } from '@angular/material/button';
 import { DisableControlDirective } from '../../../directives/disable-control.directive';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import {Base} from "../../base.class";
+import {FileUploaderWrapper} from "../../../services/file.uploader.wrapper";
+import {FileUploadModule} from "ng2-file-upload";
+import {MatCheckboxModule} from "@angular/material/checkbox";
 
 @Component({
     selector: 'app-tab-other',
     templateUrl: './tab-other.component.html',
     styleUrls: ['./tab-other.component.scss'],
     standalone: true,
-    imports: [
-        MatFormFieldModule,
-        MatInputModule,
-        FormsModule,
-        ReactiveFormsModule,
-        DisableControlDirective,
-        MatButtonModule,
-        MatTooltipModule,
-        MatIconModule,
-    ],
+  imports: [
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
+    ReactiveFormsModule,
+    DisableControlDirective,
+    MatButtonModule,
+    MatTooltipModule,
+    MatIconModule,
+    FileUploadModule,
+    MatCheckboxModule,
+  ],
 })
-export class TabOtherComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabOtherComponent extends Base implements OnInit, OnDestroy {
 
   // @ts-ignore
   @ViewChild('input2') input2: ElementRef;
+  @ViewChild('uploadFileForm') uploadFileForm!: ElementRef;
 
   autoLimitFormControl = new FormControl(0, [Validators.required, rangeValidator(0, 50000)]);
   systemNameFormControl = new FormControl('', [Validators.required]);
+
+  hoursFormControl = new FormControl(0, [Validators.required, rangeValidator(0, 23)]);
+  minutesFormControl = new FormControl(0, [Validators.required, rangeValidator(0, 59)]);
+  temperatureFormControl = new FormControl(0, [Validators.required, rangeValidator(-40, 40)]);
+
+  daysFormControl = new FormControl(1, [Validators.required, rangeValidator(1, 31)]);
+  monthFormControl = new FormControl(1, [Validators.required, rangeValidator(1, 12)]);
+  yearFormControl = new FormControl(1900, [Validators.required, rangeValidator(1900, 2100)]);
+
   matcher = new AppErrorStateMatcher();
 
   fs_allow: boolean = true;
   sd_allow: boolean = false;
   backup_place: number = 0;
+  backup_file: string = '';
 
   constructor(
     public socketService: WebsocketService,
     public managementService: ManagementService,
     public commonService: CommonService,
     public L: LanguagesService,
-    private dialog: MatDialog) {
+    public fileUploaderWrapper: FileUploaderWrapper,
+    private dialog: MatDialog)
+  {
+    super();
+    this.fileUploaderWrapper.complete$.subscribe((result) => {
+      if (result.result === 'success') {
+        // Отправить команду восстановления конфигурации из загруженного файла
+        // $23 2 ST;   - Загрузить EEPROM из файла  ST = 0 - внутр. файл. системы; 1 - на SD-карты
+        this.socketService.sendText('$23 2 0;');
+        this.managementService.text_lines = [];
+      } else if (result.result === 'error') {
+        // Вывести сообщение об ошибке
+        const dialog = this.dialog.open(ConfirmationDialogComponent, {
+          width: '400px',
+          panelClass: 'centralized-dialog-content',
+          data: {title: this.L.$('Ошибка'), message: this.L.$('Upload error'), useCancel: false, okText: this.L.$('OK') }
+        });
+      }
+    })
   }
 
   ngOnInit() {
@@ -60,7 +94,7 @@ export class TabOtherComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$), distinctUntilChanged(), debounceTime(1000))
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
-          const request = 'PW|HN|FS|SX|EE';
+          const request = 'PW|HN|FS|SX|EE|BF';
           this.managementService.getKeys(request);
         }
       });
@@ -85,10 +119,20 @@ export class TabOtherComponent implements OnInit, OnDestroy {
             case 'EE': // Наличие сохраненных настроек EEPROM на SD-карте или в файловой системе МК: 0 - нет 1 - есть в FS; 2 - есть на SD; 3 - есть в FS и на SD
               this.backup_place = this.managementService.state.backup_place;
               break;
-
+            case 'BF': // Имя файла сохраненных настроек EEPROM
+              this.backup_file = this.managementService.state.backup_file;
+              break;
           }
         }
       });
+
+    this.hoursFormControl.setValue(this.managementService.state.debug_hour);
+    this.minutesFormControl.setValue(this.managementService.state.debug_minutes);
+    this.temperatureFormControl.setValue(this.managementService.state.debug_temperature);
+
+    this.daysFormControl.setValue(this.managementService.state.debug_day);
+    this.monthFormControl.setValue(this.managementService.state.debug_month);
+    this.yearFormControl.setValue(this.managementService.state.debug_year);
   }
 
   isDisabled(): boolean {
@@ -172,8 +216,50 @@ export class TabOtherComponent implements OnInit, OnDestroy {
     this.socketService.sendText('$23 4;');
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  send() {
+    // $18 1 HH MM TT DD MN YYYY; - Установить указанное время HH:MM и температуру TT, DD.MN.YYYY - День, месяц, год - для отладки позиционирования часов с температурой
+    const HH = this.managementService.state.debug_hour = this.hoursFormControl.value ?? 0;
+    const MM = this.managementService.state.debug_minutes = this.minutesFormControl.value ?? 0;
+    const TT = this.managementService.state.debug_temperature = this.temperatureFormControl.value ?? 0;
+    const DD = this.managementService.state.debug_day = this.daysFormControl.value ?? 0;
+    const MN = this.managementService.state.debug_month = this.monthFormControl.value ?? 0;
+    const YY = this.managementService.state.debug_year = this.yearFormControl.value ?? 0;
+    this.socketService.sendText(`$18 1 ${HH} ${MM} ${TT} ${DD} ${MN} ${YY};`);
   }
+
+  left() {
+    // $18 3 X; - Сдвиг позиции вывода часов при скроллинге на X колонок
+    this.socketService.sendText(`$18 3 -1;`);
+  }
+
+  right() {
+    // $18 3 X; - Сдвиг позиции вывода часов при скроллинге на X колонок
+    this.socketService.sendText(`$18 3 1;`);
+  }
+
+  reset() {
+    // $18 4; - Сброс позиции вывода часов при скроллинге на X колонок
+    this.socketService.sendText(`$18 4;`);
+  }
+
+  crossOnOf(checked: boolean) {
+    this.managementService.state.debug_cross = checked;
+    // $18 2 X; - $18 2 X; - Вкл/выкл отображение креста
+    this.socketService.sendText(`$18 2 ${checked ? 1 : 0};`);
+  }
+
+  onUpload() {
+    this.fileUploaderWrapper.onFileSelect(
+      this.L.$("Загрузить"),
+      this.L.$("Загрузить"),
+      this.uploadFileForm,
+      '/assets/',
+      { confirmationMessage: null, fileNewName: this.backup_file });
+  }
+
+  isDebigValid() {
+    return this.hoursFormControl.valid && this.minutesFormControl.valid && this.temperatureFormControl.valid &&
+           this.daysFormControl.valid && this.monthFormControl.valid && this.yearFormControl.valid;
+  }
+
 }

@@ -1,7 +1,7 @@
 import { DOCUMENT, NgClass } from '@angular/common';
 import {Component, Inject, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {debounceTime, takeUntil} from 'rxjs';
 import {ActionModel, ActionType} from '../../../models/action.model';
 import {CommonService, MessageType} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
@@ -11,7 +11,6 @@ import {distinctUntilChanged} from "rxjs/operators";
 import {AppErrorStateMatcher, isNullOrUndefined, isNullOrUndefinedOrEmpty, rangeValidator} from "../../../services/helper";
 import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { CdkDragDrop, moveItemInArray, transferArrayItem, CdkDropListGroup, CdkDropList, CdkDrag } from "@angular/cdk/drag-drop";
-import {IEffectModel} from "../../../models/effect.model";
 import { EffectComponent } from '../../effect/effect.component';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
@@ -22,6 +21,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { BrightnessSliderComponent } from '../../brightness-slider/brightness-slider.component';
 import { ActionComponent } from '../../action/action.component';
+import {Base} from "../../base.class";
 
 @Component({
     selector: 'app-tab-effects',
@@ -48,7 +48,7 @@ import { ActionComponent } from '../../action/action.component';
         CdkDrag,
     ],
 })
-export class TabEffectsComponent implements OnInit, OnDestroy {
+export class TabEffectsComponent extends Base implements OnInit, OnDestroy {
 
   // @ts-ignore
   @ViewChild('input2') input2: ElementRef;
@@ -74,8 +74,6 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
   private e131_group: number = -1;
   private e131_streaming: boolean | undefined = undefined;
 
-  private destroy$ = new Subject();
-
   constructor(
     @Inject(DOCUMENT) private document: Document,
     public socketService: WebsocketService,
@@ -83,6 +81,8 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
+
     function checkRange(val: any, min: number, max: number): boolean {
       let res = false;
       if (typeof val === 'number') {
@@ -239,7 +239,7 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     if (isNullOrUndefined(this.input2) || Number(this.input2.nativeElement.value) === 0) {
       return this.L.$('возврат в авторежим выключен');
     }
-    return `${this.L.$('включать авторежим через')} ${this.input2.nativeElement.value} ${this.L.$('минут')} ${this.L.$('[0 - выключено]')}`;
+    return `${this.L.$('в авторежим через')} ${this.input2.nativeElement.value} ${this.L.$('минут')} ${this.L.$('[ 0-выкл ]')}`;
   }
 
   getNightClockTooltip() {
@@ -262,11 +262,11 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
 
   toggleNightClock() {
     if (this.managementService.state.isNightClockRunnung())    // MC_NIGHT_CLOCK
-      // $3 0; - включить на устройстве демо-режим
-      this.socketService.sendText('$3 0;');
+      // $14 6;- выключить на устройстве ночные часы
+      this.socketService.sendText('$14 6;');
     else
-      // $14 8; - Включить ночные часы;
-      this.socketService.sendText('$14 8;');
+      // $14 3; - Включить ночные часы;
+      this.socketService.sendText('$14 3;');
   }
 
   toggleAuxLine() {
@@ -359,11 +359,6 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
       str += ' power-on';
     }
     return str;
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
   }
 
 }
